@@ -33,3 +33,9 @@
 
 # Python binaries
 *.npz
+
+# Matlab automated saving files
+*.asv
+
+# Compiled files
+*.run

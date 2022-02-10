@@ -803,7 +803,7 @@ FEMmesh GMSHparser(std::string mesh_file)
 }
 
 
-// For protopyping a GMSH (v2) partitioned mesh reader
+// For protopyping a GMSH (v4) partitioned mesh reader
 int main(int argc, char *argv[]) 
 {
     // This is a CPU test

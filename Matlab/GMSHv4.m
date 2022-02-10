@@ -59,12 +59,6 @@ Entities             = extractBetween(f,'$Entities','$EndEntities');
 PartitionedEntities  = extractBetween(f,'$PartitionedEntities','$EndPartitionedEntities');
 Nodes                = extractBetween(f,'$Nodes','$EndNodes');
 Elements             = extractBetween(f,'$Elements','$EndElements');
-Periodic             = extractBetween(f,'$Periodic','$EndPeriodic');
-GhostElements        = extractBetween(f,'$GhostElements','$EndGhostElements');
-Parametrizations     = extractBetween(f,'$GhostParametrizations','$EndGhostParametrizations');
-NodeData             = extractBetween(f,'$NodeData','$EndNodeData');
-ElementData          = extractBetween(f,'$ElementData','$EndElementData');
-InterpolationMatrices= extractBetween(f,'$InterpolationMatrices','$EndInterpolationMatrices');
 
 % Split data lines into cells
 cells_MF    = splitlines(MeshFormat);
@@ -73,12 +67,6 @@ cells_Ent   = splitlines(Entities);
 cells_ParEnt= splitlines(PartitionedEntities);
 cells_N     = splitlines(Nodes);
 cells_E     = splitlines(Elements);
-cells_P     = splitlines(Periodic);
-cells_GE    = splitlines(GhostElements);
-cells_Param = splitlines(Parametrizations);
-cells_ND    = splitlines(NodeData);
-cells_ED    = splitlines(ElementData);
-cells_IM    = splitlines(InterpolationMatrices);
 
 % Delete emptly cells
 cells_MF    = cells_MF(not(cellfun('isempty',cells_MF)));
@@ -87,12 +75,6 @@ cells_Ent   = cells_Ent(not(cellfun('isempty',cells_Ent)));
 cells_ParEnt= cells_ParEnt(not(cellfun('isempty',cells_ParEnt)));
 cells_N     = cells_N(not(cellfun('isempty',cells_N)));
 cells_E     = cells_E(not(cellfun('isempty',cells_E)));
-cells_P     = cells_P(not(cellfun('isempty',cells_P)));
-cells_GE    = cells_GE(not(cellfun('isempty',cells_GE)));
-cells_Param = cells_Param(not(cellfun('isempty',cells_Param)));
-cells_ND    = cells_ND(not(cellfun('isempty',cells_ND)));
-cells_ED    = cells_ED(not(cellfun('isempty',cells_ED)));
-cells_IM    = cells_IM(not(cellfun('isempty',cells_IM)));
 
 %% Identify critical data within each section:
 
