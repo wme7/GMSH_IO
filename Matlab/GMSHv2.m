@@ -1,10 +1,10 @@
-function [V,E,SE,LE,PE,phys_names] = GMSHio(filename)
+function [V,E,SE,LE,PE,phys_names] = GMSHv2(filename)
 % Extract the volume, faces and edges elements contained in a single
-% GMSH file in format v2 or v4. 
+% GMSH file in format v2
 %
 % Coded by Manuel A. Diaz @ d'Alembert.UPMC, 2020.02.15
 %
-% Example call: GMSHio('filename.msh')
+% Example call: GMSHv2('filename.msh')
 %
 % Output:
 %   V: the vertices (nodes coordinates) -- simple array
@@ -102,8 +102,7 @@ tline = fgetl(fid);
 n_rows = parse_rows(tline,gmshformat);
 switch floor(gmshformat)
     case 2; [E,SE,LE,PE] = parse_v2_elements(fid,n_rows);
-    case 4; [E,SE,LE,PE] = parse_v4_elements(fid,n_rows);
-    otherwise, error('cant parse this file type');
+    otherwise, error('Error: expected GMSH format 2.2 !');
 end
 end
 
@@ -214,28 +213,3 @@ fprintf('Total edge/line-elements found = %g\n',e1);
 fprintf('Total surface-elements found = %g\n',e2);
 fprintf('Total volume-elements found = %g\n',e3);
 end
-
-function elements = parse_v4_elements(fid,n_rows)
-% http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format
-% Partial implementation ... look here
-elements = struct('simp',{},'type',{},'phys_tag',{});
-while (true)
-    tline = fgetl(fid);
-    n = sscanf(tline, '%d')';
-    n_block = n(4);
-    n_type = n(2);
-    for b = 1:n_block
-        tline = fgetl(fid);
-        el= sscanf(tline, '%d')';
-        if n_type>1 %not interested in points
-            elements(end+1) = struct( ...
-                'simp',el(2:end),'type',n_type, ...
-                'phys_tag',0);
-        end
-    end
-    if (el(1) == n_rows); break; end % got them all
-end
-tline = fgetl(fid); % get the EndElements
-end
-
-% end

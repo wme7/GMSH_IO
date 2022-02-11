@@ -12,11 +12,42 @@ std::string extractBetween(
     unsigned first_delim_pos = buffer.find(start_delimiter) + 1 ; // add '\n' char
     unsigned end_pos_of_first_delim = first_delim_pos + start_delimiter.length();
     unsigned last_delim_pos = buffer.find(stop_delimiter) - 1; // minus '\n' char
- 
+
     return buffer.substr(end_pos_of_first_delim,
         last_delim_pos - end_pos_of_first_delim);
 }
- 
+
+// Build convention map of Boundary conditions for ParadigmS:
+std::map<std::string,int> get_BC_type()
+{
+    std::map<std::string,int> BC_type;
+
+    // Initialize map of BCs
+    BC_type["BCfile"]=0;
+    BC_type["free"]=1;
+    BC_type["wall"]=2;
+    BC_type["outflow"]=3;
+    BC_type["imposedPressure"]=4;
+    BC_type["imposedVelocities"]=5;
+    BC_type["axisymmetric_y"]=6;
+    BC_type["axisymmetric_x"]=7;
+    BC_type["BC_rec"]=10;
+    BC_type["free_rec"]=11;
+    BC_type["wall_rec"]=12;
+    BC_type["outflow_rec"]=13;
+    BC_type["imposedPressure_rec"]=14;
+    BC_type["imposedVelocities_rec"]=15;
+    BC_type["axisymmetric_y_rec"]=16;
+    BC_type["axisymmetric_x_rec"]=17;
+    BC_type["piston_pressure"]=18;
+    BC_type["piston_velocity"]=19;
+    BC_type["recordingObject"]=20;
+    BC_type["recObj"]=20;
+    BC_type["piston_stress"]=21;
+
+    return BC_type;
+}
+
 int main() {
 
     // We assume that the maximun dimension within the physical groups
@@ -78,18 +109,15 @@ int main() {
             double version = 1.0; size_t format=0, size=0;
             buffer_MF >> version >> format >> size;
 
-            if(DEBUG) std::cout << "version: " << version << std::endl;
-            if(DEBUG) std::cout << "format: " << format << std::endl;
-            if(DEBUG) std::cout << "size: " << size << std::endl;
-
+            // Sanity check
             if (version != 4.1)
             {
-                std::cout << " Error - incorrect GMSH version" << std::endl; 
+                std::cout << " Error - Expected mesh format v4.1" << std::endl; 
                 std::exit(-1);
             }
             if (format != 0)
             {
-                std::cout << " Error - not ASCII file format" << std::endl; 
+                std::cout << " Error - Binary file not allowed" << std::endl; 
                 std::exit(-1);
             }
 
@@ -242,6 +270,7 @@ int main() {
         buffer_Ent.str(std::string());
         buffer_N.str(std::string());
         buffer_E.str(std::string());
+
     } else {
         //std::cout << "Could not open file: " << mesh_file << std::endl; 
         std::exit(-1);

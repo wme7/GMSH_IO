@@ -50,44 +50,55 @@ function mesh = GMSHv4(filename)
 %% Read all sections
 DEBUG = true;
 
-f = fileread(filename);
-
+file = fileread(filename);
 % Extract strings between:
-MeshFormat    = extractBetween(f,'$MeshFormat','$EndMeshFormat');
-PhysicalNames = extractBetween(f,'$PhysicalNames','$EndPhysicalNames');
-Entities      = extractBetween(f,'$Entities','$EndEntities');
-PartEntities  = extractBetween(f,'$PartitionedEntities','$EndPartitionedEntities');
-Nodes         = extractBetween(f,'$Nodes','$EndNodes');
-Elements      = extractBetween(f,'$Elements','$EndElements');
+MeshFormat    = extractBetween(file,'$MeshFormat','$EndMeshFormat');
+PhysicalNames = extractBetween(file,'$PhysicalNames','$EndPhysicalNames');
+Entities      = extractBetween(file,'$Entities','$EndEntities');
+PartEntities  = extractBetween(file,'$PartitionedEntities','$EndPartitionedEntities');
+Nodes         = extractBetween(file,'$Nodes','$EndNodes');
+Elements      = extractBetween(file,'$Elements','$EndElements');
 
 % Split data lines into cells
-cells_MF  = splitlines(MeshFormat);
-cells_PN  = splitlines(PhysicalNames);
-cells_Ent = splitlines(Entities);
-cells_PEnt= splitlines(PartEntities);
-cells_N   = splitlines(Nodes);
-cells_E   = splitlines(Elements);
+cells_MF   = splitlines(MeshFormat);
+cells_PN   = splitlines(PhysicalNames);
+cells_Ent  = splitlines(Entities);
+cells_PEnt = splitlines(PartEntities);
+cells_N    = splitlines(Nodes);
+cells_E    = splitlines(Elements);
 
-% Delete emptly cells
-cells_MF  = cells_MF(not(cellfun('isempty',cells_MF)));
-cells_PN  = cells_PN(not(cellfun('isempty',cells_PN)));
-cells_Ent = cells_Ent(not(cellfun('isempty',cells_Ent)));
-cells_PEnt= cells_PEnt(not(cellfun('isempty',cells_PEnt)));
-cells_N   = cells_N(not(cellfun('isempty',cells_N)));
-cells_E   = cells_E(not(cellfun('isempty',cells_E)));
+% Delete emptly cells 
+cells_MF   = cells_MF(not(cellfun('isempty',cells_MF)));
+cells_PN   = cells_PN(not(cellfun('isempty',cells_PN)));
+cells_Ent  = cells_Ent(not(cellfun('isempty',cells_Ent)));
+cells_PEnt = cells_PEnt(not(cellfun('isempty',cells_PEnt)));
+cells_N    = cells_N(not(cellfun('isempty',cells_N)));
+cells_E    = cells_E(not(cellfun('isempty',cells_E)));
+
+% Sanity check
+if cellfun('isempty',cells_MF ), error('Error - Wrong File Format!'); end
+if cellfun('isempty',cells_PN ), error('Error - No Physical names!'); end
+if cellfun('isempty',cells_Ent), error('Error - No Entities found!'); end
+if cellfun('isempty',cells_N  ), error('Error - Nodes are missing!'); end
+if cellfun('isempty',cells_E  ), error('Error - No elements found!'); end
 
 %% Identify critical data within each section:
 
-% 1. Get MeshFormat
+%********************%
+% 1. Read MeshFormat
+%********************%
 line_data = sscanf(cells_MF{1},'%f %d %d');
 mesh.version   = line_data(1);	% 4.1 is expected
 mesh.file_type = line_data(2);	% 0:ASCII or 1:Binary
 mesh.mode      = line_data(3);	% 1 in binary mode to detect endianness 
 
 % Sanity check
-if (mesh.version ~= 4.1), error('Expected mesh format v4.1'); end
+if (mesh.version ~= 4.1), error('Error - Expected mesh format v4.1'); end
+if (mesh.file_type ~= 0), error('Error - Binary file not allowed'); end
 
-% 2. Get PhysicalNames
+%***********************%
+% 2. Read PhysicalNames
+%***********************%
 numPhysicalNames = sscanf(cells_PN{1},'%d');
 for n = 1:numPhysicalNames
    line_data = sscanf(cells_PN{n+1},'%d %d');
@@ -97,7 +108,9 @@ for n = 1:numPhysicalNames
    mesh.physicalNames(n).name = line_data{1};
 end
 
-% 3. Get Entities
+%***********************%
+% 3. Read Entities
+%***********************%
 l=1; % line counter
 line_data = sscanf(cells_Ent{l},'%d %d %d %d');
 numPoints = line_data(1);
@@ -130,7 +143,9 @@ for i = 1:numVolumes
     l = l+1; % update line counter
 end
 
-% 4. Get Partitioned Entities
+%******************************%
+% 4. Read Partitioned Entities
+%******************************%
 l=1; numPartitions = sscanf(cells_PEnt{l},'%d');
 l=2; numGhostEntities = sscanf(cells_PEnt{l},'%d'); % not important for the moment!
 l=3; line_data = sscanf(cells_PEnt{l},'%d');
@@ -164,7 +179,9 @@ for i = 1:numVolumes
     l = l+1; % update line counter
 end
 
-% Get Nodes
+%***********************%
+% Read Nodes
+%***********************%
 l=1; % line counter
 line_data = sscanf(cells_N{l},'%d %d %d %d');
 numEntityBlocks = line_data(1);
@@ -208,7 +225,9 @@ if DEBUG
     hold off
 end
 
-% Get Elements
+%***********************%
+% Read Elements
+%***********************%
 l=1; % line counter
 line_data = sscanf(cells_E{l},'%d %d %d %d');
 numEntityBlocks = line_data(1);
@@ -219,6 +238,7 @@ maxElementsTag  = line_data(4);
 % Allocate space for Elements data
 mesh.E1 =sparse(numElements,2);
 mesh.E2 =sparse(numElements,3);
+mesh.E4 =sparse(numElements,4);
 mesh.E15=sparse(numElements,1);
 
 for ent = 1:numEntityBlocks
@@ -237,6 +257,7 @@ for ent = 1:numEntityBlocks
         switch elementType
             case 1, mesh.E1 (elementTag(i),:) = line_data(2:end);
             case 2, mesh.E2 (elementTag(i),:) = line_data(2:end);
+            case 4, mesh.E4 (elementTag(i),:) = line_data(2:end);
             case 15,mesh.E15(elementTag(i),:) = line_data(2);
             otherwise, error('element not in list');
         end
@@ -244,3 +265,123 @@ for ent = 1:numEntityBlocks
 end
 %
 end % GMSHv4 read function
+
+% Get single entity information:
+function [entityTag,physicalTags] = get_entity(str_line,type)
+    
+    vector = str2double(regexp(str_line,'-?[\d.]+(?:e-?\d+)?','match'));
+
+    switch type
+        case 'node'
+            % 1. get entityTag
+            entityTag = vector(1);
+
+            % 2. get entity coordinates % not needed
+            %minX(i) = line_data(2); 
+            %minY(i) = line_data(3);
+            %minZ(i) = line_data(4);
+
+            % 3. get physical tag associated
+            numPhysicalTags = vector(5);
+            physicalTags = zeros(1,numPhysicalTags);
+            for j=1:numPhysicalTags
+                physicalTags(j) = vector(5+j);
+            end
+
+        otherwise
+            % 1. get entityTag
+            entityTag = vector(1);
+        
+            % 2. get entity limits (for visualization) % not needed
+            %minX(i) = line_data(2); 
+            %minY(i) = line_data(3);
+            %minZ(i) = line_data(4);
+            %maxX(i) = line_data(5);
+            %maxY(i) = line_data(6);
+            %maxZ(i) = line_data(7);
+            
+            % 3. get physical tag associated
+            numPhysicalTags = vector(8);
+            physicalTags = zeros(1,numPhysicalTags);
+            for j=1:numPhysicalTags
+                physicalTags(j) = vector(8+j);
+            end
+        
+            % 4. get tags of subentities that define it. % not needed
+            %numBoudingEntities = line_data(9+j);
+            %entitiesTags = zeros(1,numBoudingEntities);
+            %for k=1:numBoudingEntities
+            %   entitiesTags(k) = line_data(9+j+k);
+            %end
+    end
+end
+
+% Get single partitioned entity information:
+function [entityTag,partitionTags,physicalTags] = get_partitionedEntity(str_line,type)
+    
+    vector = str2double(regexp(str_line,'-?[\d.]+(?:e-?\d+)?','match'));
+
+    switch type
+        case 'node'
+            % 1. get entityTag
+            entityTag = vector(1);
+
+            % 2. get parent dimention and tag % no needed
+            %parentDim(i) = vector(2);
+            %parentTag(i) = vector(3);
+            
+            numPartitionTags = vector(4);
+            partitionTags = zeros(1,numPartitionTags);
+            for j=1:numPartitionTags
+                partitionTags(j) = vector(4+j);
+            end
+
+            % 3. get entity coordinates % not needed
+            %minX(i) = line_data(5+j); 
+            %minY(i) = line_data(6+j);
+            %minZ(i) = line_data(7+j);
+
+            % 4. get physical tag associated
+            numPhysicalTags = vector(8+j);
+            physicalTags = zeros(1,numPhysicalTags);
+            for k=1:numPhysicalTags
+                physicalTags(k) = vector(8+j+k);
+            end
+
+        otherwise
+            % 1. get entityTag
+            entityTag = vector(1);
+        
+            % 2. get parent dimention and tag % no needed
+            %parentDim(i) = vector(2);
+            %parentTag(i) = vector(3);
+            
+            numPartitionTags = vector(4);
+            partitionTags = zeros(1,numPartitionTags);
+            for j=1:numPartitionTags
+                partitionTags(j) = vector(4+j);
+            end
+
+            % 3. get entity coordinates % not needed
+            %minX(i) = line_data( 5+j); 
+            %minY(i) = line_data( 6+j);
+            %minZ(i) = line_data( 7+j);
+            %maxX(i) = line_data( 8+j); 
+            %maxY(i) = line_data( 9+j);
+            %maxZ(i) = line_data(10+j);
+            
+            % 4. get physical tag associated
+            numPhysicalTags = vector(11+j);
+            physicalTags = zeros(1,numPhysicalTags);
+            for k=1:numPhysicalTags
+                physicalTags(k) = vector(11+j+k);
+            end
+        
+            % 5. get tags of subentities that define it. % not needed
+            %numBoudingEntities = line_data(12+j+k);
+            %entitiesTags = zeros(1,numBoudingEntities);
+            %for l=1:numBoudingEntities
+            %   entitiesTags(l) = line_data(12+j+k+l);
+            %end
+    end
+end
