@@ -53,28 +53,28 @@ DEBUG = true;
 f = fileread(filename);
 
 % Extract strings between:
-MeshFormat           = extractBetween(f,'$MeshFormat','$EndMeshFormat');
-PhysicalNames        = extractBetween(f,'$PhysicalNames','$EndPhysicalNames');
-Entities             = extractBetween(f,'$Entities','$EndEntities');
-PartitionedEntities  = extractBetween(f,'$PartitionedEntities','$EndPartitionedEntities');
-Nodes                = extractBetween(f,'$Nodes','$EndNodes');
-Elements             = extractBetween(f,'$Elements','$EndElements');
+MeshFormat    = extractBetween(f,'$MeshFormat','$EndMeshFormat');
+PhysicalNames = extractBetween(f,'$PhysicalNames','$EndPhysicalNames');
+Entities      = extractBetween(f,'$Entities','$EndEntities');
+PartEntities  = extractBetween(f,'$PartitionedEntities','$EndPartitionedEntities');
+Nodes         = extractBetween(f,'$Nodes','$EndNodes');
+Elements      = extractBetween(f,'$Elements','$EndElements');
 
 % Split data lines into cells
-cells_MF    = splitlines(MeshFormat);
-cells_PN    = splitlines(PhysicalNames);
-cells_Ent   = splitlines(Entities);
-cells_ParEnt= splitlines(PartitionedEntities);
-cells_N     = splitlines(Nodes);
-cells_E     = splitlines(Elements);
+cells_MF  = splitlines(MeshFormat);
+cells_PN  = splitlines(PhysicalNames);
+cells_Ent = splitlines(Entities);
+cells_PEnt= splitlines(PartEntities);
+cells_N   = splitlines(Nodes);
+cells_E   = splitlines(Elements);
 
 % Delete emptly cells
-cells_MF    = cells_MF(not(cellfun('isempty',cells_MF)));
-cells_PN    = cells_PN(not(cellfun('isempty',cells_PN)));
-cells_Ent   = cells_Ent(not(cellfun('isempty',cells_Ent)));
-cells_ParEnt= cells_ParEnt(not(cellfun('isempty',cells_ParEnt)));
-cells_N     = cells_N(not(cellfun('isempty',cells_N)));
-cells_E     = cells_E(not(cellfun('isempty',cells_E)));
+cells_MF  = cells_MF(not(cellfun('isempty',cells_MF)));
+cells_PN  = cells_PN(not(cellfun('isempty',cells_PN)));
+cells_Ent = cells_Ent(not(cellfun('isempty',cells_Ent)));
+cells_PEnt= cells_PEnt(not(cellfun('isempty',cells_PEnt)));
+cells_N   = cells_N(not(cellfun('isempty',cells_N)));
+cells_E   = cells_E(not(cellfun('isempty',cells_E)));
 
 %% Identify critical data within each section:
 
@@ -177,9 +177,9 @@ for i = 1:numVolumes
 end
 
 % 4. Get Partitioned Entities
-l=1; numPartitions = sscanf(cells_ParEnt{l},'%d');
-l=2; numGhostEntities = sscanf(cells_ParEnt{l},'%d'); % not important for the moment!
-l=3; line_data = sscanf(cells_ParEnt{l},'%d');
+l=1; numPartitions = sscanf(cells_PEnt{l},'%d');
+l=2; numGhostEntities = sscanf(cells_PEnt{l},'%d'); % not important for the moment!
+l=3; line_data = sscanf(cells_PEnt{l},'%d');
 numPoints  = line_data(1);
 numCurves  = line_data(2);
 numSurfaces= line_data(3);
