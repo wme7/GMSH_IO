@@ -53,18 +53,18 @@ DEBUG = true;
 f = fileread(filename);
 
 % Extract strings between:
-MeshFormat           = extractBetween(f,'$MeshFormat','$EndMeshFormat');
-PhysicalNames        = extractBetween(f,'$PhysicalNames','$EndPhysicalNames');
-Entities             = extractBetween(f,'$Entities','$EndEntities');
-PartitionedEntities  = extractBetween(f,'$PartitionedEntities','$EndPartitionedEntities');
-Nodes                = extractBetween(f,'$Nodes','$EndNodes');
-Elements             = extractBetween(f,'$Elements','$EndElements');
+MeshFormat    = extractBetween(f,'$MeshFormat','$EndMeshFormat');
+PhysicalNames = extractBetween(f,'$PhysicalNames','$EndPhysicalNames');
+Entities      = extractBetween(f,'$Entities','$EndEntities');
+PartEntities  = extractBetween(f,'$PartitionedEntities','$EndPartitionedEntities');
+Nodes         = extractBetween(f,'$Nodes','$EndNodes');
+Elements      = extractBetween(f,'$Elements','$EndElements');
 
 % Split data lines into cells
 cells_MF  = splitlines(MeshFormat);
 cells_PN  = splitlines(PhysicalNames);
 cells_Ent = splitlines(Entities);
-cells_PEnt= splitlines(PartitionedEntities);
+cells_PEnt= splitlines(PartEntities);
 cells_N   = splitlines(Nodes);
 cells_E   = splitlines(Elements);
 
@@ -75,13 +75,6 @@ cells_Ent = cells_Ent(not(cellfun('isempty',cells_Ent)));
 cells_PEnt= cells_PEnt(not(cellfun('isempty',cells_PEnt)));
 cells_N   = cells_N(not(cellfun('isempty',cells_N)));
 cells_E   = cells_E(not(cellfun('isempty',cells_E)));
-
-% Sanity check
-if cellfun('isempty',cells_MF), error('Incorrect file format'); end
-if cellfun('isempty',cells_PN), error('No physical names found'); end
-if cellfun('isempty',cells_Ent), error('No entities found'); end
-if cellfun('isempty',cells_N), error('Nodes are missing'); end
-if cellfun('isempty',cells_E), error('Elements are missing'); end
 
 %% Identify critical data within each section:
 
