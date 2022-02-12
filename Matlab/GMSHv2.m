@@ -1,133 +1,128 @@
-function [V,E,SE,LE,PE,phys_names] = GMSHv2(filename)
-% Extract the volume, faces and edges elements contained in a single
-% GMSH file in format v2
+function [V,VE,SE,LE,PE,mapPhysNames,info] = GMSHv2(filename)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% Coded by Manuel A. Diaz @ d'Alembert.UPMC, 2020.02.15
+%     Extract entities contained in a single GMSH file in format v2.2 
+%
+%      Coded by Manuel A. Diaz @ Pprime | Univ-Poitiers, 2022.01.21
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % Example call: GMSHv2('filename.msh')
 %
 % Output:
-%   V: the vertices (nodes coordinates) -- simple array
-%   E: volumetric elementes (tetrahedrons) -- structure
-%  SE: surface elements (triangles) -- structure
-%  LE: linear elements (edges) -- structure
-%  PE: point elements (singular vertices) -- structure
+%     V: the vertices (nodes coordinates) -- (Nx3) array
+%    VE: volumetric elementes (tetrahedrons) -- structure
+%    SE: surface elements (triangles,quads) -- structure
+%    LE: curvilinear elements (lines/edges) -- structure
+%    PE: point elements (singular vertices) -- structure
+%    mapPhysNames: maps phys.tag --> phys.name  -- map structure
+%    info: version, format, endian test -- structure
 %
-fID = fopen(filename,'r');
-%
-phys_names = [];
-while (true)
-    tline = fgetl(fID);
-    if ~ischar(tline); fclose(fID); break; end
-    
-    if strcmp(tline,'$MeshFormat')
-        GMSHformat = parse_format(fID);
-    elseif strcmp(tline,'$PhysicalNames')
-        phys_names = parse_names(fID,GMSHformat);
-    elseif strcmp(tline,'$Nodes')
-        V = parse_nodes(fID,GMSHformat);
-    elseif strcmp(tline,'$Elements') 
-        [E,SE,LE,PE] = parse_elements(fID,GMSHformat);
-    end
-end
-end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Read all sections
 
-function gmshformat = parse_format(fid)
-tline = fgetl(fid);
-rawformat = sscanf(tline,'%f');
-tline = fgetl(fid); % should be EndMeshFormat
-gmshformat = rawformat(1);
-end
+file = fileread(filename);
+% Extract strings between:
+MeshFormat    = extractBetween(file,['$MeshFormat',newline],[newline,'$EndMeshFormat']);
+PhysicalNames = extractBetween(file,['$PhysicalNames',newline],[newline,'$EndPhysicalNames']);
+Nodes         = extractBetween(file,['$Nodes',newline],[newline,'$EndNodes']);
+Elements      = extractBetween(file,['$Elements',newline],[newline,'$EndElements']);
 
-function names = parse_names(fid,gmshformat)
-% Line Format:
-% physical-dimension physical-number "physical-name"
-tline = fgetl(fid);
-n_rows = parse_rows(tline,gmshformat);
-names = struct('tag',{},'dim',{},'name',{});
-for i = 1:n_rows
-    tline = fgetl(fid);
-    if exist('OCTAVE_VERSION')
-        parts = strsplit(tline,' ');
-    else
-        parts = regexp(tline,' ','split');
-    end
-    nsz = size(names,2)+1;
-    names(nsz).dim = str2double( parts(1) );
-    names(nsz).tag = str2double( parts(2) );
-    tname = parts(3);
-    names(nsz).name = strrep(tname{1},'"','');
-end
-end
+% Sanity check
+if isempty(MeshFormat),    error('Error - Wrong File Format!'); end
+if isempty(PhysicalNames), error('Error - No Physical names!'); end
+if isempty(Nodes),         error('Error - Nodes are missing!'); end
+if isempty(Elements),      error('Error - No elements found!'); end
 
-function mat = parse_nodes(fid,gmshformat)
-tline = fgetl(fid);
-n_rows = parse_rows(tline,gmshformat);
-switch floor(gmshformat)
-    % Line Format:
-    % node-number x-coord y-coord z-coord
-    case 2
-        mat = fscanf(fid,'%f',[4,n_rows])';
-        mat = mat(:,2:4); % let the index be the node id
-    case 4
-        mat = zeros(n_rows,4);
-        while (true)
-            tline = fgetl(fid);
-            n = sscanf(tline, '%d')';
-            n_block = n(4);
-            for b = 1:n_block
-                tline = fgetl(fid);
-                el= sscanf(tline, '%f')';
-                mat(el(1),:) = el(1:end);
-            end
-            if (el(1) == n_rows); break; end % got them all
-        end
-        tline = fgetl(fid); % get the EndElements
-    otherwise; error('cant parse gmsh file of this format');
-end
-fprintf('Total vertices found = %g\n',n_rows);
-end
+% Split data lines into cells (Only in Matlab!)
+cells_MF   = splitlines(MeshFormat);
+cells_PN   = splitlines(PhysicalNames);
+cells_N    = splitlines(Nodes);
+cells_E    = splitlines(Elements);
 
-function n_rows = parse_rows(tline,gmshformat)
-n_rows = sscanf(tline,'%d');
-switch floor(gmshformat)
-    case 2; n_rows = n_rows(1);
-    case 4; n_rows = n_rows(2);
-    otherwise; error('cant parse gmsh file of this format');
-end
-end
+%% Define map of costum Boundary types (BC_type)
+% BCnames = { 'BCfile','free','wall','outflow',...
+%         'imposedPressure','imposedVelocities',...
+%         'axisymmetric_y','axisymmetric_x',...
+%         'BC_rec','free_rec','wall_rec','outflow_rec',...
+%         'imposedPressure_rec','imposedVelocities_rec',...
+%         'axisymmetric_y_rec','axisymmetric_x_rec',...
+%         'piston_pressure','piston_velocity',...
+%         'recordingObject','recObj','piston_stress'};
+% BCsolverIds = [0:7,10:20,20,21]; % costume IDs expected in our solver
+% BC_type = containers.Map(BCnames,BCsolverIds);
 
-function [E,SE,LE,PE] = parse_elements(fid,gmshformat)
-tline = fgetl(fid);
-n_rows = parse_rows(tline,gmshformat);
-switch floor(gmshformat)
-    case 2; [E,SE,LE,PE] = parse_v2_elements(fid,n_rows);
-    otherwise, error('Error: expected GMSH format 2.2 !');
-end
-end
+%% Identify critical data within each section:
 
-function [E,SE,LE,PE] = parse_v2_elements(fid,n_rows)
+%********************%
+% 1. Read Mesh Format
+%********************%
+line_data = sscanf(cells_MF{1},'%f %d %d');
+info.version   = line_data(1);	% 2.2 is expected
+info.file_type = line_data(2);	% 0:ASCII or 1:Binary
+info.mode      = line_data(3);	% 1 in binary mode to detect endianness 
+
+% Sanity check
+if (info.version ~= 2.2), error('Error - Expected mesh format v2.2'); end
+if (info.file_type ~= 0), error('Error - Binary file not allowed'); end
+
+%***********************%
+% 2. Read Physical Names
+%***********************%
+phys = struct('dim',{},'tag',{},'name',{});
+numPhysicalNames = sscanf(cells_PN{1},'%d');
+for n = 1:numPhysicalNames
+   parts = strsplit(cells_PN{n+1});
+   phys(n).dim  = str2double(parts{1});
+   phys(n).tag  = str2double(parts{2});
+   phys(n).name = strrep(parts{3},'"','');
+end
+mapPhysNames = containers.Map([phys.tag],{phys.name});
+info.Dim = max([phys.dim]);
+
+%***********************%
+% 3. Read Nodes
+%***********************%
+l=1; % read first line
+numNodes = sscanf(cells_N{l},'%d');
+
+% allocate space for nodal data
+V = zeros(numNodes,3); % [x,y,z] 
+
+% Nodes Coordinates
+for i=1:numNodes
+    l = l+1; % update line counter
+    line_data = sscanf(cells_N{l},'%d %g %g %g'); % [i,x(i),y(i),z(i)]
+    V(i,:) = line_data(2:4);
+end
+fprintf('Total vertices found = %g\n',length(V));
+
+%***********************%
+% 4. Read Elements
+%***********************%
+l=1; % read first line
+numElements = sscanf(cells_E{l},'%d');
+
 % Line Format:
 % elm-number elm-type number-of-tags < tag > ... node-number-list
- E.EToV=[];  E.phys_tag=[];  E.geom_tag=[];  E.part_tag=[];  E.Etype=[];
-SE.EToV=[]; SE.phys_tag=[]; SE.geom_tag=[]; SE.part_tag=[]; SE.Etype=[];
-LE.EToV=[]; LE.phys_tag=[]; LE.geom_tag=[]; LE.part_tag=[]; LE.Etype=[];
 PE.EToV=[]; PE.phys_tag=[]; PE.geom_tag=[]; PE.part_tag=[]; PE.Etype=[];
+LE.EToV=[]; LE.phys_tag=[]; LE.geom_tag=[]; LE.part_tag=[]; LE.Etype=[];
+SE.EToV=[]; SE.phys_tag=[]; SE.geom_tag=[]; SE.part_tag=[]; SE.Etype=[];
+VE.EToV=[]; VE.phys_tag=[]; VE.geom_tag=[]; VE.part_tag=[]; VE.Etype=[];
 
 e0 = 0; % point Element counter
 e1 = 0; % Lines Element counter
 e2 = 0; % Triangle Element counter
 e3 = 0; % Tetrehedron Element counter
-for i = 1:n_rows
-    tline = fgetl(fid);
-    n = sscanf(tline, '%d')';
-    %elementID = n(1);
+for i = 1:numElements
+    n = sscanf(cells_E{1+i}, '%d')';
+    %elementID = n(1); % we use a local numbering instead
     elementType = n(2);
     numberOfTags = n(3);
     switch elementType
         case 1 % Line elements
             e1 = e1 + 1; % update element counter
-            LE.Etype(e1) = elementType;
+            LE.Etype(e1,1) = elementType;
             LE.EToV(e1,:) = n(3+numberOfTags+1:end);
             if numberOfTags > 0 % get tags if they exist
                 tags = n(3+(1:numberOfTags)); % get tags
@@ -136,18 +131,18 @@ for i = 1:n_rows
                 % tags(3) : number of partitions to which the element belongs
                 % tags(4) : partition id number
                 if length(tags) >= 1
-                    LE.phys_tag(e1) = tags(1);
+                    LE.phys_tag(e1,1) = tags(1);
                     if length(tags) >= 2
-                        LE.geom_tag(e1) = tags(2);
+                        LE.geom_tag(e1,1) = tags(2);
                         if length(tags) >= 4
-                            LE.part_tag(e1) = tags(4);
+                            LE.part_tag(e1,1) = tags(4);
                         end
                     end
                 end
             end
         case 2 % triangle elements
             e2 = e2 + 1; % update element counter
-            SE.Etype(e2) = elementType;
+            SE.Etype(e2,1) = elementType;
             SE.EToV(e2,:) = n(3+numberOfTags+1:end);
             if numberOfTags > 0 % get tags if they exist
                 tags = n(3+(1:numberOfTags)); % get tags
@@ -156,19 +151,19 @@ for i = 1:n_rows
                 % tags(3) : number of partitions to which the element belongs
                 % tags(4) : partition id number
                 if length(tags) >= 1
-                    SE.phys_tag(e2) = tags(1);
+                    SE.phys_tag(e2,1) = tags(1);
                     if length(tags) >= 2
-                        SE.geom_tag(e2) = tags(2);
+                        SE.geom_tag(e2,1) = tags(2);
                         if length(tags) >= 4
-                            SE.part_tag(e2) = tags(4);
+                            SE.part_tag(e2,1) = tags(4);
                         end
                     end
                 end
             end
         case 4 % tetrahedron elements
             e3 = e3 + 1; % update element counter
-            E.Etype(e3) = elementType;
-            E.EToV(e3,:) = n(3+numberOfTags+1:end);
+            VE.Etype(e3,1) = elementType;
+            VE.EToV(e3,:) = n(3+numberOfTags+1:end);
             if numberOfTags > 0 % get tags if they exist
                 tags = n(3+(1:numberOfTags)); % get tags
                 % tags(1) : physical entity to which the element belongs
@@ -176,18 +171,18 @@ for i = 1:n_rows
                 % tags(3) : number of partitions to which the element belongs
                 % tags(4) : partition id number
                 if length(tags) >= 1
-                    E.phys_tag(e3) = tags(1);
+                    VE.phys_tag(e3,1) = tags(1);
                     if length(tags) >= 2
-                        E.geom_tag(e3) = tags(2);
+                        VE.geom_tag(e3,1) = tags(2);
                         if length(tags) >= 4
-                            E.part_tag(e3) = tags(4);
+                            VE.part_tag(e3,1) = tags(4);
                         end
                     end
                 end
             end
         case 15 % point element
             e0 = e0 + 1; % update element counter
-            PE.Etype(e0) = elementType;
+            PE.Etype(e0,1) = elementType;
             PE.EToV(e0,:) = n(3+numberOfTags+1:end);
             if numberOfTags > 0 % if they exist
                 tags = n(3+(1:numberOfTags)); % get tags
@@ -196,11 +191,11 @@ for i = 1:n_rows
                 % tags(3) : number of partitions to which the element belongs
                 % tags(4) : partition id number
                 if length(tags) >= 1
-                    PE.phys_tag(e0) = tags(1);
+                    PE.phys_tag(e0,1) = tags(1);
                     if length(tags) >= 2
-                        PE.geom_tag(e0) = tags(2);
+                        PE.geom_tag(e0,1) = tags(2);
                         if length(tags) >= 4
-                            PE.part_tag(e0) = tags(4);
+                            PE.part_tag(e0,1) = tags(4);
                         end
                     end
                 end
@@ -208,8 +203,17 @@ for i = 1:n_rows
         otherwise, error('element not set yet!');
     end
 end
+%
+% Find the total number of partitions
+info.numPartitions = max(SE.part_tag);
+%
 fprintf('Total point-elements found = %g\n',e0);
-fprintf('Total edge/line-elements found = %g\n',e1);
+fprintf('Total line-elements found = %g\n',e1);
 fprintf('Total surface-elements found = %g\n',e2);
 fprintf('Total volume-elements found = %g\n',e3);
+% Sanity check
+if numElements ~= (e0+e1+e2+e3)
+    error('Total number of elements missmatch!'); 
 end
+%
+end % GMSHv2 read function

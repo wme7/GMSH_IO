@@ -1,273 +1,308 @@
-function mesh = GMSHv4(filename)
+function [V,VE,SE,LE,PE,mapPhysNames,info] = GMSHv4(filename)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 %     Extract entities contained in a single GMSH file in format v4.1 
 %
-%      Coded by Manuel A. Diaz @ Univ-Poitiers | Pprime, 2022.01.21
+%      Coded by Manuel A. Diaz @ Pprime | Univ-Poitiers, 2022.01.21
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% Example call: mesh = GMSHv4('filename.msh');
+% Example call: GMSHv4('filename.msh')
 %
-% Output: 
-%   mesh.Dim:  mesh dimensionality, D=2,3.
-%   mesh.V :   vertices/nodes coordinates.
-%   mesh.E1:   2-node line.
-%   mesh.E2:   3-node triangle.
-%   mesh.E3:   4-node quadrangle.
-%   mesh.E4:   4-node tetrahedron.
-%   mesh.E5:   8-node hexahedron.
-%   mesh.E6:   6-node prism.
-%   mesh.E7:   5-node pyramid.
-%   mesh.E8:   3-node second order line.
-%   mesh.E9:   6-node second order triangle.
-%   mesh.E10:  9-node second order quadrangle.
-%   mesh.E11: 10-node second order tetrahedron.
-%   mesh.E12: 27-node second order hexahedron.
-%   mesh.E13: 18-node second order prism.
-%   mesh.E14: 14-node second order pyramid.
-%   mesh.E15:  1-node point.
-%   mesh.E16:  8-node second order quadrangle.
-%   mesh.E17: 20-node second order hexahedron.
-%   mesh.E18: 15-node second order prism.
-%   mesh.E19: 13-node second order pyramid.
-%   mesh.E20:  9-node third order incomplete triangle.
-%   mesh.E21: 10-node third order triangle.
-%   mesh.E22: 12-node fourth order incomplete triangle.
-%   mesh.E23: 15-node fourth order triangle.
-%   mesh.E24: 15-node fifth order incomplete triangle.
-%   mesh.E25: 21-node fifth order complete triangle.
-%   mesh.E26:  4-node third order edge.
-%   mesh.E27:  5-node fourth order edge.
-%   mesh.E28:  6-node fifth order edge.
-%   mesh.E29: 20-node third order tetrahedron.
-%   mesh.E30: 35-node fourth order tetrahedron.
-%   mesh.E31: 56-node fifth order tetrahedron.
-%   mesh.E92: 64-node third order hexahedron.
-%   mesh.E93:125-node fourth order hexahedron.
+% Output:
+%     V: the vertices (nodes coordinates) -- (Nx3) array
+%    VE: volumetric elementes (tetrahedrons) -- structure
+%    SE: surface elements (triangles,quads) -- structure
+%    LE: curvilinear elements (lines/edges) -- structure
+%    PE: point elements (singular vertices) -- structure
+%    mapPhysNames: maps phys.tag --> phys.name  -- map structure
+%    info: version, format, endian test -- structure
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Read all sections
-DEBUG = true;
 
 file = fileread(filename);
 % Extract strings between:
-MeshFormat    = extractBetween(file,'$MeshFormat','$EndMeshFormat');
-PhysicalNames = extractBetween(file,'$PhysicalNames','$EndPhysicalNames');
-Entities      = extractBetween(file,'$Entities','$EndEntities');
-PartEntities  = extractBetween(file,'$PartitionedEntities','$EndPartitionedEntities');
-Nodes         = extractBetween(file,'$Nodes','$EndNodes');
-Elements      = extractBetween(file,'$Elements','$EndElements');
+MeshFormat    = extractBetween(file,['$MeshFormat',newline],[newline,'$EndMeshFormat']);
+PhysicalNames = extractBetween(file,['$PhysicalNames',newline],[newline,'$EndPhysicalNames']);
+Entities      = extractBetween(file,['$Entities',newline],[newline,'$EndEntities']);
+PartEntities  = extractBetween(file,['$PartitionedEntities',newline],[newline,'$EndPartitionedEntities']);
+Nodes         = extractBetween(file,['$Nodes',newline],[newline,'$EndNodes']);
+Elements      = extractBetween(file,['$Elements',newline],[newline,'$EndElements']);
 
-% Split data lines into cells
+% Sanity check
+if isempty(MeshFormat),    error('Error - Wrong File Format!'); end
+if isempty(PhysicalNames), error('Error - No Physical names!'); end
+if isempty(Entities),      error('Error - No Entities found!'); end
+if isempty(Nodes),         error('Error - Nodes are missing!'); end
+if isempty(Elements),      error('Error - No elements found!'); end
+
+% Is it a single or partitioned domain?
+if isempty(PartEntities), single_domain=1; else, single_domain=0; end
+
+% Split data lines into cells (Only in Matlab!)
 cells_MF   = splitlines(MeshFormat);
 cells_PN   = splitlines(PhysicalNames);
 cells_Ent  = splitlines(Entities);
-cells_PEnt = splitlines(PartEntities);
 cells_N    = splitlines(Nodes);
 cells_E    = splitlines(Elements);
+if not(single_domain)
+    cells_PEnt = splitlines(PartEntities);
+end
 
-% Delete emptly cells 
-cells_MF   = cells_MF(not(cellfun('isempty',cells_MF)));
-cells_PN   = cells_PN(not(cellfun('isempty',cells_PN)));
-cells_Ent  = cells_Ent(not(cellfun('isempty',cells_Ent)));
-cells_PEnt = cells_PEnt(not(cellfun('isempty',cells_PEnt)));
-cells_N    = cells_N(not(cellfun('isempty',cells_N)));
-cells_E    = cells_E(not(cellfun('isempty',cells_E)));
-
-% Sanity check
-if cellfun('isempty',cells_MF ), error('Error - Wrong File Format!'); end
-if cellfun('isempty',cells_PN ), error('Error - No Physical names!'); end
-if cellfun('isempty',cells_Ent), error('Error - No Entities found!'); end
-if cellfun('isempty',cells_N  ), error('Error - Nodes are missing!'); end
-if cellfun('isempty',cells_E  ), error('Error - No elements found!'); end
+%% Define map of costum Boundary types (BC_type)
+% BCnames = { 'BCfile','free','wall','outflow',...
+%         'imposedPressure','imposedVelocities',...
+%         'axisymmetric_y','axisymmetric_x',...
+%         'BC_rec','free_rec','wall_rec','outflow_rec',...
+%         'imposedPressure_rec','imposedVelocities_rec',...
+%         'axisymmetric_y_rec','axisymmetric_x_rec',...
+%         'piston_pressure','piston_velocity',...
+%         'recordingObject','recObj','piston_stress'};
+% BCsolverIds = [0:7,10:20,20,21]; % costume IDs expected in our solver
+% BC_type = containers.Map(BCnames,BCsolverIds);
 
 %% Identify critical data within each section:
 
 %********************%
-% 1. Read MeshFormat
+% 1. Read Mesh Format
 %********************%
 line_data = sscanf(cells_MF{1},'%f %d %d');
-mesh.version   = line_data(1);	% 4.1 is expected
-mesh.file_type = line_data(2);	% 0:ASCII or 1:Binary
-mesh.mode      = line_data(3);	% 1 in binary mode to detect endianness 
+info.version   = line_data(1);	% 4.1 is expected
+info.file_type = line_data(2);	% 0:ASCII or 1:Binary
+info.mode      = line_data(3);	% 1 in binary mode to detect endianness 
 
 % Sanity check
-if (mesh.version ~= 4.1), error('Error - Expected mesh format v4.1'); end
-if (mesh.file_type ~= 0), error('Error - Binary file not allowed'); end
+if (info.version ~= 4.1), error('Error - Expected mesh format v4.1'); end
+if (info.file_type ~= 0), error('Error - Binary file not allowed'); end
 
 %***********************%
-% 2. Read PhysicalNames
+% 2. Read Physical Names
 %***********************%
+phys = struct('dim',{},'tag',{},'name',{});
 numPhysicalNames = sscanf(cells_PN{1},'%d');
 for n = 1:numPhysicalNames
-   line_data = sscanf(cells_PN{n+1},'%d %d');
-   mesh.physicalNames(n).dimension = line_data(1);
-   mesh.physicalNames(n).tag = line_data(2);
-   line_data = regexp(cells_PN{n+1},'(?<=")[^"]+(?=")','match');
-   mesh.physicalNames(n).name = line_data{1};
+   parts = strsplit(cells_PN{n+1});
+   phys(n).dim  = str2double(parts{1});
+   phys(n).tag  = str2double(parts{2});
+   phys(n).name = strrep(parts{3},'"','');
+end
+mapPhysNames = containers.Map([phys.tag],{phys.name});
+info.Dim = max([phys.dim]);
+
+if single_domain
+    %***********************%
+    % 3. Read Entities
+    %***********************%
+    l=1; % line counter
+    line_data = sscanf(cells_Ent{l},'%d %d %d %d');
+    nP = line_data(1);
+    nC = line_data(2);
+    nS = line_data(3);
+    nV = line_data(4);
+    l=2; % line counter
+    points  = struct('ID',{},'Phys_ID',{});
+    curves  = struct('ID',{},'Phys_ID',{});
+    surfaces= struct('ID',{},'Phys_ID',{});
+    volumes = struct('ID',{},'Phys_ID',{});
+    % read points
+    if nP>0
+        for i = 1:nP
+            points(i) = get_entity(cells_Ent{l},'node');
+            l = l+1; % update line counter
+        end
+        point2Phys = containers.Map([points.ID],[points.Phys_ID]);
+    end
+    % read curves
+    if nC>0
+        for i = 1:nC
+            curves(i) = get_entity(cells_Ent{l},'curve');
+            l = l+1; % update line counter
+        end
+        curve2Phys = containers.Map([curves.ID],[curves.Phys_ID]);
+    end
+    % read surfaces
+    if nS>0
+        for i = 1:nS
+            surfaces(i) = get_entity(cells_Ent{l},'surface');
+            l = l+1; % update line counter
+        end
+        surf2Phys = containers.Map([surfaces.ID],[surfaces.Phys_ID]);
+    end
+    % read volumes
+    if nV>0
+        for i = 1:nV
+            volumes(i) = get_entity(cells_Ent{l},'volume');
+            l = l+1; % update line counter
+        end
+        volm2Phys = containers.Map([volumes.ID],[volumes.Phys_ID]);
+    end
+
+else
+    %******************************%
+    % 4. Read Partitioned Entities
+    %******************************%
+    l=1; info.numPartitions = sscanf(cells_PEnt{l},'%d');
+    %l=2; numGhostEntities = sscanf(cells_PEnt{l},'%d'); % not needed
+    l=3; line_data = sscanf(cells_PEnt{l},'%d');
+    nP = line_data(1);
+    nC = line_data(2);
+    nS = line_data(3);
+    nV = line_data(4);
+    l=4; % line counter
+    points  = struct('chld_ID',{},'Prnt_ID',{},'Part_ID',{},'Phys_ID',{});
+    curves  = struct('chld_ID',{},'Prnt_ID',{},'Part_ID',{},'Phys_ID',{});
+    surfaces= struct('chld_ID',{},'Prnt_ID',{},'Part_ID',{},'Phys_ID',{});
+    volumes = struct('chld_ID',{},'Prnt_ID',{},'Part_ID',{},'Phys_ID',{});
+    % read points
+    if nP>0
+        for i = 1:nP
+            points(i) = get_partitionedEntity(cells_PEnt{l},'node');
+            l = l+1; % update line counter
+        end
+        point2Part = containers.Map([points.chld_ID],{points.Part_ID});
+        point2Phys = containers.Map([points.chld_ID],[points.Phys_ID]);
+        point2Geom = containers.Map([points.chld_ID],[points.Prnt_ID]);
+    end
+    % read curves
+    if nC>0
+        for i = 1:nC
+            curves(i) = get_partitionedEntity(cells_PEnt{l},'curve');
+            l = l+1; % update line counter
+        end
+        curve2Part = containers.Map([curves.chld_ID],{curves.Part_ID});
+        curve2Phys = containers.Map([curves.chld_ID],[curves.Phys_ID]);
+        curve2Geom = containers.Map([curves.chld_ID],[curves.Prnt_ID]);
+    end
+    % read surfaces
+    if nS>0
+        for i = 1:nS
+            surfaces(i) = get_partitionedEntity(cells_PEnt{l},'surface');
+            l = l+1; % update line counter
+        end
+        surf2Part = containers.Map([surfaces.chld_ID],{surfaces.Part_ID});
+        surf2Phys = containers.Map([surfaces.chld_ID],[surfaces.Phys_ID]);
+        surf2Geom = containers.Map([surfaces.chld_ID],[surfaces.Prnt_ID]);
+    end
+    % read volumes
+    if nV>0
+        for i = 1:nV
+            volumes(i) = get_partitionedEntity(cells_PEnt{l},'volume');
+            l = l+1; % update line counter
+        end
+        volm2Part = containers.Map([volumes.chld_ID],{volumes.Part_ID});
+        volm2Phys = containers.Map([volumes.chld_ID],[volumes.Phys_ID]);
+        volm2Geom = containers.Map([volumes.chld_ID],[volumes.Prnt_ID]);
+    end
 end
 
 %***********************%
-% 3. Read Entities
+% 5. Read Nodes
 %***********************%
-l=1; % line counter
-line_data = sscanf(cells_Ent{l},'%d %d %d %d');
-numPoints = line_data(1);
-numCurves = line_data(2);
-numSurfaces= line_data(3);
-numVolumes = line_data(4);
-l=2; % line counter
-%mesh.entities.points
-for i = 1:numPoints
-    [pointTag,pointPhysicalTags] = get_entity(cells_Ent{l},'node');
-    disp([pointTag,pointPhysicalTags]);
-    l = l+1; % update line counter
-end
-%mesh.entities.curves
-for i = 1:numCurves
-    [curveTag,curvePhysicalTags] = get_entity(cells_Ent{l},'curve');
-    disp([curveTag,curvePhysicalTags]);
-    l = l+1; % update line counter
-end
-%mesh.entities.surfaces
-for i = 1:numSurfaces
-    [surfaceTag,surfacePhysicalTags] = get_entity(cells_Ent{l},'surface');
-    disp([surfaceTag,surfacePhysicalTags]);
-    l = l+1; % update line counter
-end
-%mesh.entities.volumes
-for i = 1:numVolumes
-    [volumeTag,volumePhysicalTags] = get_entity(cells_Ent{l},'volume');
-    disp([volumeTag,volumePhysicalTags]);
-    l = l+1; % update line counter
-end
-
-%******************************%
-% 4. Read Partitioned Entities
-%******************************%
-l=1; numPartitions = sscanf(cells_PEnt{l},'%d');
-l=2; numGhostEntities = sscanf(cells_PEnt{l},'%d'); % not important for the moment!
-l=3; line_data = sscanf(cells_PEnt{l},'%d');
-numPoints  = line_data(1);
-numCurves  = line_data(2);
-numSurfaces= line_data(3);
-numVolumes = line_data(4);
-l=4; % line counter
-%mesh.partitionedEntities.points
-for i = 1:numPoints
-    [pointTag,pointPartTags,pointPhysicalTags] = get_partitionedEntity(cells_PEnt{l},'node');
-    disp([pointTag,pointPartTags,pointPhysicalTags]);
-    l = l+1; % update line counter
-end
-%mesh.partitionedEntities.curves
-for i = 1:numCurves
-    [curveTag,curvePartTags,curvePhysicalTags] = get_partitionedEntity(cells_PEnt{l},'curve');
-    disp([curveTag,curvePartTags,curvePhysicalTags]);
-    l = l+1; % update line counter
-end
-%mesh.partitionedEntities.surfaces
-for i = 1:numSurfaces
-    [surfaceTag,surfacePartTags,surfacePhysicalTags] = get_partitionedEntity(cells_PEnt{l},'surface');
-    disp([surfaceTag,surfacePartTags,surfacePhysicalTags]);
-    l = l+1; % update line counter
-end
-%mesh.partitionedEntities.volumes
-for i = 1:numVolumes
-    [volumeTag,volumePartTags,volumePhysicalTags] = get_partitionedEntity(cells_PEnt{l},'volume');
-    disp([volumeTag,volumePartTags,volumePhysicalTags]);
-    l = l+1; % update line counter
-end
-
-%***********************%
-% Read Nodes
-%***********************%
-l=1; % line counter
+l=1; % read first line
 line_data = sscanf(cells_N{l},'%d %d %d %d');
 numEntityBlocks = line_data(1);
 numNodes        = line_data(2);
-minNodeTag      = line_data(3);
-maxNodeTag      = line_data(4);
-
-% allocate space for nodal data
-mesh.V = zeros(numNodes,3); % [x,y,z] 
-
-% Note: entityBlock can be read in parallel !
-for ent = 1:numEntityBlocks
-    l = l+1; % update line counter
-    line_data = sscanf(cells_N{l},'%d %d %d %d');
-    entityDim = line_data(1);
-    entityTag = line_data(2);
-    %parametric = line_data(3); % not used for the moment.
-    numNodesInBlock = line_data(4);
-    %
-    nodeTag = zeros(1,numNodesInBlock); % nodeTag
-    for i=1:numNodesInBlock
-        l = l+1; % update line counter
-        nodeTag(i) = sscanf(cells_N{l},'%d');
-    end
-    %
-    for i=1:numNodesInBlock
-        l = l+1; % update line counter
-        mesh.V(nodeTag(i),:) = sscanf(cells_N{l},'%f %f %f'); % [x(i),y(i),z(i)]
-    end
-end
-
-if DEBUG 
-    x = double(mesh.V(:,1));
-    y = double(mesh.V(:,2));
-    z = double(mesh.V(:,3));
-    scatter3(x,y,z,'.k'); 
-    hold on
-    for i=1:numNodes
-        text(x(i),y(i),z(i),num2str(i));
-    end
-    hold off
-end
+%minNodeTag      = line_data(3); % not needed
+%maxNodeTag      = line_data(4); % not needed
+V = get_nodes(cells_N,numEntityBlocks,numNodes);
+fprintf('Total vertices found = %g\n',length(V));
 
 %***********************%
-% Read Elements
+% 6. Read Elements
 %***********************%
-l=1; % line counter
+l=1; % read first line
 line_data = sscanf(cells_E{l},'%d %d %d %d');
 numEntityBlocks = line_data(1);
 numElements     = line_data(2);
-minElementsTag  = line_data(3);
-maxElementsTag  = line_data(4);
+%minElementsTag  = line_data(3); % not needed
+%maxElementsTag  = line_data(4); % not needed
 
 % Allocate space for Elements data
-mesh.E1 =sparse(numElements,2);
-mesh.E2 =sparse(numElements,3);
-mesh.E4 =sparse(numElements,4);
-mesh.E15=sparse(numElements,1);
+PE.EToV=[]; PE.phys_tag=[]; PE.geom_tag=[]; PE.part_tag=[]; PE.Etype=[];
+LE.EToV=[]; LE.phys_tag=[]; LE.geom_tag=[]; LE.part_tag=[]; LE.Etype=[];
+SE.EToV=[]; SE.phys_tag=[]; SE.geom_tag=[]; SE.part_tag=[]; SE.Etype=[];
+VE.EToV=[]; VE.phys_tag=[]; VE.geom_tag=[]; VE.part_tag=[]; VE.Etype=[];
 
+e0 = 0; % point Element counter
+e1 = 0; % Lines Element counter
+e2 = 0; % Triangle Element counter
+e3 = 0; % Tetrehedron Element counter
 for ent = 1:numEntityBlocks
     l = l+1; % update line counter
     line_data = sscanf(cells_E{l},'%d %d %d %d');
-    entityDim = line_data(1); % entity spatial dimension
-    entityTag = line_data(2); % Subgroup Tag number
-    elementType = line_data(3);
+    %entityDim = line_data(1); % 0:point, 1:curve, 2:surface, 3:volume
+    entityTag = line_data(2); % this is: Entity.ID | Entity.child_ID
+    elementType = line_data(3); % 1:line, 2:triangle, 4:tetrahedron, 15:point
     numElementsInBlock = line_data(4);
     %
-    elementTag = zeros(1,numElementsInBlock); % elementTag
     for i=1:numElementsInBlock
         l = l+1; % update line counter
         line_data = sscanf(cells_E{l},'%d %d %d %d');
-        elementTag(i) = line_data(1);
-        switch elementType
-            case 1, mesh.E1 (elementTag(i),:) = line_data(2:end);
-            case 2, mesh.E2 (elementTag(i),:) = line_data(2:end);
-            case 4, mesh.E4 (elementTag(i),:) = line_data(2:end);
-            case 15,mesh.E15(elementTag(i),:) = line_data(2);
+        %elementID = line_data(1); % we use a local numbering instead
+        switch elementType % <-- shoudl be entityDim, but we only use 4 element types
+            case 1 % Line elements
+                e1 = e1 + 1; % update element counter
+                LE.Etype(e1,1) = elementType;
+                LE.EToV(e1,:) = line_data(2:3);
+                LE.phys_tag(e1,1) = curve2Phys(entityTag);
+                if not(single_domain)
+                    LE.geom_tag(e1,1) = curve2Geom(entityTag);
+                    LE.part_tag(e1,1) = curve2Part(entityTag);
+                else
+                    LE.geom_tag(e1,1) = entityTag;
+                end
+            case 2 % triangle elements
+                e2 = e2 + 1; % update element counter
+                SE.Etype(e2,1) = elementType;
+                SE.EToV(e2,:) = line_data(2:4);
+                SE.phys_tag(e2,1) = surf2Phys(entityTag);
+                if not(single_domain)
+                    SE.geom_tag(e2,1) = surf2Geom(entityTag);
+                    SE.part_tag(e2,1) = surf2Part(entityTag);
+                else
+                    SE.geom_tag(e2,1) = entityTag;
+                end
+            case 4 % tetrahedron elements
+                e3 = e3 + 1; % update element counter
+                VE.Etype(e3,1) = elementType;
+                VE.EToV(e3,:) = line_data(2:5);
+                VE.phys_tag(e3,1) = volm2Phys(entityTag);
+                if not(single_domain)
+                    VE.geom_tag(e3,1) = volm2Geom(entityTag);
+                    VE.part_tag(e3,1) = volm2Part(entityTag);
+                else 
+                    VE.geom_tag(e3,1) = entityTag;
+                end
+            case 15 % Point elements
+                e0 = e0 + 1; % update element counter
+                PE.Etype(e0,1) = elementType;
+                PE.EToV(e0,:) = line_data(2);
+                PE.phys_tag(e0,1) = point2Phys(entityTag);
+                if not(single_domain)
+                    PE.geom_tag(e0,1) = point2Geom(entityTag);
+                    PE.part_tag(e0,1) = point2Part(entityTag);
+                else
+                    PE.geom_tag(e0,1) = entityTag;
+                end
             otherwise, error('element not in list');
         end
     end
 end
 %
+fprintf('Total point-elements found = %d\n',e0);
+fprintf('Total line-elements found = %d\n',e1);
+fprintf('Total surface-elements found = %d\n',e2);
+fprintf('Total volume-elements found = %d\n',e3);
+% Sanity check
+if numElements ~= (e0+e1+e2+e3)
+    error('Total number of elements missmatch!'); 
+end
+%
 end % GMSHv4 read function
 
 % Get single entity information:
-function [entityTag,physicalTags] = get_entity(str_line,type)
+function entity = get_entity(str_line,type)
     
     vector = str2double(regexp(str_line,'-?[\d.]+(?:e-?\d+)?','match'));
 
@@ -276,23 +311,27 @@ function [entityTag,physicalTags] = get_entity(str_line,type)
             % 1. get entityTag
             entityTag = vector(1);
 
-            % 2. get entity coordinates % not needed
+            % 3. get entity coordinates % not needed
             %minX(i) = line_data(2); 
             %minY(i) = line_data(3);
             %minZ(i) = line_data(4);
 
             % 3. get physical tag associated
             numPhysicalTags = vector(5);
-            physicalTags = zeros(1,numPhysicalTags);
-            for j=1:numPhysicalTags
-                physicalTags(j) = vector(5+j);
+            if numPhysicalTags == 0
+                physicalTags = NaN;
+            else
+                physicalTags = zeros(1,numPhysicalTags);
+                for j=1:numPhysicalTags
+                    physicalTags(j) = vector(5+j);
+                end
             end
 
         otherwise
             % 1. get entityTag
             entityTag = vector(1);
         
-            % 2. get entity limits (for visualization) % not needed
+            % 2. get entity boxing limits (for visualization) % not needed
             %minX(i) = line_data(2); 
             %minY(i) = line_data(3);
             %minZ(i) = line_data(4);
@@ -302,9 +341,13 @@ function [entityTag,physicalTags] = get_entity(str_line,type)
             
             % 3. get physical tag associated
             numPhysicalTags = vector(8);
-            physicalTags = zeros(1,numPhysicalTags);
-            for j=1:numPhysicalTags
-                physicalTags(j) = vector(8+j);
+            if numPhysicalTags == 0
+                physicalTags = NaN;
+            else
+                physicalTags = zeros(1,numPhysicalTags);
+                for j=1:numPhysicalTags
+                    physicalTags(j) = vector(8+j);
+                end
             end
         
             % 4. get tags of subentities that define it. % not needed
@@ -314,10 +357,12 @@ function [entityTag,physicalTags] = get_entity(str_line,type)
             %   entitiesTags(k) = line_data(9+j+k);
             %end
     end
+    % output structure:
+    entity  = struct('ID',entityTag,'Phys_ID',physicalTags);
 end
 
 % Get single partitioned entity information:
-function [entityTag,partitionTags,physicalTags] = get_partitionedEntity(str_line,type)
+function entity = get_partitionedEntity(str_line,type)
     
     vector = str2double(regexp(str_line,'-?[\d.]+(?:e-?\d+)?','match'));
 
@@ -327,25 +372,30 @@ function [entityTag,partitionTags,physicalTags] = get_partitionedEntity(str_line
             entityTag = vector(1);
 
             % 2. get parent dimention and tag % no needed
-            %parentDim(i) = vector(2);
-            %parentTag(i) = vector(3);
+            %parentDim = vector(2);
+            parentTag = vector(3);
             
             numPartitionTags = vector(4);
-            partitionTags = zeros(1,numPartitionTags);
-            for j=1:numPartitionTags
-                partitionTags(j) = vector(4+j);
+            if numPartitionTags > 1 % <-- mark it as an interface element!
+                j=numPartitionTags; partitionTags = Inf;
+            else
+                j=numPartitionTags; partitionTags = vector(4+j);
             end
 
             % 3. get entity coordinates % not needed
-            %minX(i) = line_data(5+j); 
-            %minY(i) = line_data(6+j);
-            %minZ(i) = line_data(7+j);
+            %minX = line_data(5+j); 
+            %minY = line_data(6+j);
+            %minZ = line_data(7+j);
 
             % 4. get physical tag associated
             numPhysicalTags = vector(8+j);
-            physicalTags = zeros(1,numPhysicalTags);
-            for k=1:numPhysicalTags
-                physicalTags(k) = vector(8+j+k);
+            if numPhysicalTags == 0 % <-- entity has not physical group!
+                physicalTags = NaN;
+            else
+                physicalTags = zeros(1,numPhysicalTags);
+                for k=1:numPhysicalTags
+                    physicalTags(k) = vector(8+j+k);
+                end
             end
 
         otherwise
@@ -353,16 +403,17 @@ function [entityTag,partitionTags,physicalTags] = get_partitionedEntity(str_line
             entityTag = vector(1);
         
             % 2. get parent dimention and tag % no needed
-            %parentDim(i) = vector(2);
-            %parentTag(i) = vector(3);
+            %parentDim = vector(2);
+            parentTag = vector(3);
             
             numPartitionTags = vector(4);
-            partitionTags = zeros(1,numPartitionTags);
-            for j=1:numPartitionTags
-                partitionTags(j) = vector(4+j);
+            if numPartitionTags > 1 % <-- mark it as an interface element!
+                j=numPartitionTags; partitionTags = Inf;
+            else
+                j=numPartitionTags; partitionTags = vector(4+j);
             end
 
-            % 3. get entity coordinates % not needed
+            % 3. get entity boxing limits (for visualization) % not needed
             %minX(i) = line_data( 5+j); 
             %minY(i) = line_data( 6+j);
             %minZ(i) = line_data( 7+j);
@@ -372,9 +423,13 @@ function [entityTag,partitionTags,physicalTags] = get_partitionedEntity(str_line
             
             % 4. get physical tag associated
             numPhysicalTags = vector(11+j);
-            physicalTags = zeros(1,numPhysicalTags);
-            for k=1:numPhysicalTags
-                physicalTags(k) = vector(11+j+k);
+            if numPhysicalTags == 0 % <-- entity has not physical group!
+                physicalTags = NaN;
+            else
+                physicalTags = zeros(1,numPhysicalTags);
+                for k=1:numPhysicalTags
+                    physicalTags(k) = vector(11+j+k);
+                end
             end
         
             % 5. get tags of subentities that define it. % not needed
@@ -384,4 +439,41 @@ function [entityTag,partitionTags,physicalTags] = get_partitionedEntity(str_line
             %   entitiesTags(l) = line_data(12+j+k+l);
             %end
     end
+    % output structure:
+    entity  = struct('chld_ID',entityTag,'Prnt_ID',parentTag,...
+                    'Part_ID',partitionTags,'Phys_ID',physicalTags);
+end
+
+% Get single partitioned entity information:
+function V = get_nodes(cells_N,numNodeBlocks,numNodes)
+
+    % allocate space for nodal data
+    V = zeros(numNodes,3); % [x,y,z] 
+
+    l = 1; % this is the parameters line
+    % Read nodes blocks:   (can be read in parallel!)
+    for ent = 1:numNodeBlocks
+        l = l+1; % update line counter
+        %
+        % Block parameters
+        line_data = sscanf(cells_N{l},'%d %d %d %d');
+        %entityDim = line_data(1);  % not needed
+        %entityTag = line_data(2);  % not needed
+        %parametric = line_data(3); % not needed
+        numNodesInBlock = line_data(4);
+        %
+        % Nodes IDs
+        nodeTag = zeros(1,numNodesInBlock); % nodeTag
+        for i=1:numNodesInBlock
+            l = l+1; % update line counter
+            nodeTag(i) = sscanf(cells_N{l},'%d');
+        end
+        %
+        % Nodes Coordinates
+        for i=1:numNodesInBlock
+            l = l+1; % update line counter
+            V(nodeTag(i),:) = sscanf(cells_N{l},'%g %g %g'); % [x(i),y(i),z(i)]
+        end
+    end
+
 end
