@@ -1,4 +1,4 @@
-function [V,VE,SE,LE,PE,mapPhysNames,info] = GMSHv2(filename)
+function [V,VE,SE,LE,PE,mapPhysNames,info] = GMSHparserV2(filename)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 %     Extract entities contained in a single GMSH file in format v2.2 
@@ -7,16 +7,48 @@ function [V,VE,SE,LE,PE,mapPhysNames,info] = GMSHv2(filename)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% Example call: GMSHv2('filename.msh')
+% Example call: GMSHparserV2('filename.msh')
 %
 % Output:
 %     V: the vertices (nodes coordinates) -- (Nx3) array
-%    VE: volumetric elementes (tetrahedrons) -- structure
+%    VE: volumetric elements (tetrahedrons) -- structure
 %    SE: surface elements (triangles,quads) -- structure
 %    LE: curvilinear elements (lines/edges) -- structure
 %    PE: point elements (singular vertices) -- structure
 %    mapPhysNames: maps phys.tag --> phys.name  -- map structure
 %    info: version, format, endian test -- structure
+%
+% Note: This parser is designed to capture the following elements:
+%
+% Point:                Line:                   Triangle:
+%
+%        v                                              v
+%        ^                                              ^
+%        |                       v                      |
+%        +----> u                ^                      2
+%       0                        |                      |`\
+%                                |                      |  `\
+%                          0-----+-----1 --> u          |    `\
+%                                                       |      `\
+% Tetrahedron:                                          |        `\
+%                                                       0----------1 --> u
+%                    v
+%                   ,
+%                  /
+%               2
+%             ,/|`\                    Based on the GMSH guide 4.9.4
+%           ,/  |  `\                  This are lower-order elements 
+%         ,/    '.   `\                identified as:
+%       ,/       |     `\                  E-1 : 2-node Line 
+%     ,/         |       `\                E-2 : 3-node Triangle
+%    0-----------'.--------1 --> u         E-4 : 4-node tetrahedron
+%     `\.         |      ,/                E-15: 1-node point
+%        `\.      |    ,/
+%           `\.   '. ,/                Other elements can be added to 
+%              `\. |/                  this parser by modifying the 
+%                 `3                   Read Elements stage.
+%                    `\.
+%                       ` w            Happy coding ! M.D. 02/2022.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Read all sections

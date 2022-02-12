@@ -1,25 +1,25 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-%    Test GMSH readers for format version v2.2 (Legacy) and V4.1
+%  Test GMSH parsers for msh-files written in format version v2.2 and V4.1
 %
-%      Coded by Manuel A. Diaz @ d'Alembert | UPMC, 2020.02.15
+%      Coded by Manuel A. Diaz @ Pprime | Univ-Poitiers, 2022.01.21
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear; close all;
 
-[V,~,SE,LE,~,~,info] = GMSHv2('../meshes/rectangle_v2.msh');
+[V,~,SE,LE,~,~,info] = GMSHparserV2('../meshes/rectangle_v2.msh');
 viewInfo(info); % Display info
 figure(1); subplot(221); viewNodes(V,info);
 figure(2); subplot(221); viewLineElements(V,LE.EToV,info);
 figure(3); subplot(221); viewSurfaceElements(V,SE.EToV,info);
 
-[V,~,SE,LE,~,~,info] = GMSHv4('../meshes/rectangle_v4.msh');
+[V,~,SE,LE,~,~,info] = GMSHparserV4('../meshes/rectangle_v4.msh');
 viewInfo(info); % Display info
 figure(1); subplot(222); viewNodes(V,info);
 figure(2); subplot(222); viewLineElements(V,LE.EToV,info);
 figure(3); subplot(222); viewSurfaceElements(V,SE.EToV,info);
 
-[V,VE,SE,LE,~,~,info] = GMSHv2('../meshes/cuboid_v2.msh');
+[V,VE,SE,LE,~,~,info] = GMSHparserV2('../meshes/cuboid_v2.msh');
 viewInfo(info); % Display info
 figure(1); subplot(223); viewNodes(V,info);
 figure(2); subplot(223); viewLineElements(V,LE.EToV,info);
@@ -27,7 +27,7 @@ figure(3); subplot(223); viewSurfaceElements(V,SE.EToV,info);
 figure(4); subplot(221); viewPartVolumes(V,VE.EToV,VE.part_tag,1,info);
 figure(4); subplot(222); viewPartVolumes(V,VE.EToV,VE.part_tag,2,info);
 
-[V,VE,SE,LE,PE,~,info] = GMSHv4('../meshes/cuboid_v4.msh');
+[V,VE,SE,LE,PE,~,info] = GMSHparserV4('../meshes/cuboid_v4.msh');
 viewInfo(info); % Display info
 figure(1); subplot(224); viewNodes(V,info);
 figure(2); subplot(224); viewLineElements(V,LE.EToV,info);
@@ -38,7 +38,7 @@ figure(4); subplot(224); viewPartVolumes(V,VE.EToV,VE.part_tag,2,info);
 % Conclusion:
 % GMSH format 2.2 is easier to read and use for single-partitioned meshes.
 % However, format 4.1 is more suitable for handling partitioned domains.
-%                                                          M.D. 2022.02.08
+%                                                          M.D. 2022.01.21
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Plot/Display mesh data
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -39,8 +39,8 @@ INCLUDE = -I$(INC_DIR) -I$(HDF_INSTALL)/include -I$(EIGEN_INSTALL)
 LIBSHDF = $(EXTLIB) -lhdf5
 
 # APPs to be compiled
-EXE_MSH1=$(EXE_DIR)/test_GMSHparserV2_Global.run
-EXE_MSH2=$(EXE_DIR)/test_GMSHparserV4_Global.run
+EXE_MSH1=$(EXE_DIR)/GMSHparserV2.run
+EXE_MSH2=$(EXE_DIR)/GMSHparserV4.run
 
 # Compilation process for:
 all: tests
@@ -49,10 +49,10 @@ tests: $(EXE_DIR) $(EXE_MSH1) $(EXE_MSH2)
 $(EXE_DIR):
 	${MKDIR_P} $(EXE_DIR)
 
-$(EXE_MSH1): $(APP_DIR)/test_GMSHparserV2_Global.o
+$(EXE_MSH1): $(APP_DIR)/GMSHparserV2.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) $(INCLUDE) $(LIBSHDF) $(LIB)
 
-$(EXE_MSH2): $(APP_DIR)/test_GMSHparserV4_Global.o
+$(EXE_MSH2): $(APP_DIR)/GMSHparserV4.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) $(INCLUDE) $(LIBSHDF) $(LIB)
 
 $(APP_DIR)/%.o: $(APP_DIR)/%.cpp
