@@ -13,7 +13,7 @@ class Triangle{
         Describes an element by its three vertex ids, the global identification
     number (id) and the element type.
 
-    Impelmentation: MD
+    Implementation: MD
     ---------------  
     Input:
         ------

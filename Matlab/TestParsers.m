@@ -36,8 +36,10 @@ figure(4); subplot(223); viewPartVolumes(V,VE.EToV,VE.part_tag,1,info);
 figure(4); subplot(224); viewPartVolumes(V,VE.EToV,VE.part_tag,2,info);
 
 % Conclusion:
-% GMSH format 2.2 is easier to read and use for single-partitioned meshes.
-% However, format 4.1 is more suitable for handling partitioned domains.
+% GMSH format 2.2 is easier to read and to use directly with
+% single-partitioned meshes. However, format 4.1 is more suitable for
+% handling partitioned domains as it provides the interfacial elements
+% required for comunications between partitions. 
 %                                                          M.D. 2022.01.21
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Plot/Display mesh data

@@ -13,7 +13,7 @@ class Line{
         Describes an edge by the ids of the two vertex, the global identification
     number (id) and the edge type.
 
-    Impelmentation: MD
+    Implementation: MD
     ---------------  
     Input:
         ------

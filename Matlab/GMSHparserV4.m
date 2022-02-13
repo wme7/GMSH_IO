@@ -344,19 +344,16 @@ function entity = get_entity(str_line,type)
             entityTag = vector(1);
 
             % 3. get entity coordinates % not needed
-            %minX(i) = line_data(2); 
-            %minY(i) = line_data(3);
-            %minZ(i) = line_data(4);
+            %X = vector(2); 
+            %Y = vector(3);
+            %Z = vector(4);
 
             % 3. get physical tag associated
             numPhysicalTags = vector(5);
             if numPhysicalTags == 0
-                physicalTags = NaN;
+                physicalTag = -1;
             else
-                physicalTags = zeros(1,numPhysicalTags);
-                for j=1:numPhysicalTags
-                    physicalTags(j) = vector(5+j);
-                end
+                physicalTag = vector(6);
             end
 
         otherwise
@@ -364,22 +361,19 @@ function entity = get_entity(str_line,type)
             entityTag = vector(1);
         
             % 2. get entity boxing limits (for visualization) % not needed
-            %minX(i) = line_data(2); 
-            %minY(i) = line_data(3);
-            %minZ(i) = line_data(4);
-            %maxX(i) = line_data(5);
-            %maxY(i) = line_data(6);
-            %maxZ(i) = line_data(7);
+            %minX = vector(2); 
+            %minY = vector(3);
+            %minZ = vector(4);
+            %maxX = vector(5);
+            %maxY = vector(6);
+            %maxZ = vector(7);
             
             % 3. get physical tag associated
             numPhysicalTags = vector(8);
             if numPhysicalTags == 0
-                physicalTags = NaN;
+                physicalTag = -1;
             else
-                physicalTags = zeros(1,numPhysicalTags);
-                for j=1:numPhysicalTags
-                    physicalTags(j) = vector(8+j);
-                end
+                physicalTag = vector(9);
             end
         
             % 4. get tags of subentities that define it. % not needed
@@ -390,7 +384,7 @@ function entity = get_entity(str_line,type)
             %end
     end
     % output structure:
-    entity  = struct('ID',entityTag,'Phys_ID',physicalTags);
+    entity  = struct('ID',entityTag,'Phys_ID',physicalTag);
 end
 
 % Get single partitioned entity information:
@@ -403,31 +397,29 @@ function entity = get_partitionedEntity(str_line,type)
             % 1. get entityTag
             entityTag = vector(1);
 
-            % 2. get parent dimention and tag % no needed
-            %parentDim = vector(2);
+            % 2. get parent dimention and tag 
+            %parentDim = vector(2); % not needed
             parentTag = vector(3);
             
+            % 3. get partition tags
             numPartitionTags = vector(4);
-            if numPartitionTags > 1 % <-- mark it as an interface element!
-                j=numPartitionTags; partitionTags = Inf;
+            if numPartitionTags > 1 % --> mark it as an interface element!
+                j=numPartitionTags; partitionTags = -1;
             else
                 j=numPartitionTags; partitionTags = vector(4+j);
             end
 
-            % 3. get entity coordinates % not needed
-            %minX = line_data(5+j); 
-            %minY = line_data(6+j);
-            %minZ = line_data(7+j);
+            % 4. get entity coordinates % not needed
+            %X = vector(5+j); 
+            %Y = vector(6+j);
+            %Z = vector(7+j);
 
-            % 4. get physical tag associated
+            % 5. get physical tag associated
             numPhysicalTags = vector(8+j);
             if numPhysicalTags == 0 % <-- entity has not physical group!
-                physicalTags = NaN;
+                physicalTag = -1;
             else
-                physicalTags = zeros(1,numPhysicalTags);
-                for k=1:numPhysicalTags
-                    physicalTags(k) = vector(8+j+k);
-                end
+                physicalTag = vector(9+j);
             end
 
         otherwise
@@ -438,30 +430,28 @@ function entity = get_partitionedEntity(str_line,type)
             %parentDim = vector(2);
             parentTag = vector(3);
             
+            % 3. get partition tags
             numPartitionTags = vector(4);
-            if numPartitionTags > 1 % <-- mark it as an interface element!
-                j=numPartitionTags; partitionTags = Inf;
+            if numPartitionTags > 1 % --> mark it as an interface element!
+                j=numPartitionTags; partitionTags = -1;
             else
                 j=numPartitionTags; partitionTags = vector(4+j);
             end
 
             % 3. get entity boxing limits (for visualization) % not needed
-            %minX(i) = line_data( 5+j); 
-            %minY(i) = line_data( 6+j);
-            %minZ(i) = line_data( 7+j);
-            %maxX(i) = line_data( 8+j); 
-            %maxY(i) = line_data( 9+j);
-            %maxZ(i) = line_data(10+j);
+            %minX = vector( 5+j); 
+            %minY = vector( 6+j);
+            %minZ = vector( 7+j);
+            %maxX = vector( 8+j); 
+            %maxY = vector( 9+j);
+            %maxZ = vector(10+j);
             
             % 4. get physical tag associated
             numPhysicalTags = vector(11+j);
             if numPhysicalTags == 0 % <-- entity has not physical group!
-                physicalTags = NaN;
+                physicalTag = -1;
             else
-                physicalTags = zeros(1,numPhysicalTags);
-                for k=1:numPhysicalTags
-                    physicalTags(k) = vector(11+j+k);
-                end
+                physicalTag = vector(12+j);
             end
         
             % 5. get tags of subentities that define it. % not needed
@@ -473,7 +463,7 @@ function entity = get_partitionedEntity(str_line,type)
     end
     % output structure:
     entity  = struct('chld_ID',entityTag,'Prnt_ID',parentTag,...
-                    'Part_ID',partitionTags,'Phys_ID',physicalTags);
+                    'Part_ID',partitionTags,'Phys_ID',physicalTag);
 end
 
 % Get single partitioned entity information:

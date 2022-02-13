@@ -2,6 +2,9 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
+#include <tuple>
+#include <map>
 
 // Get a sub-string from the main string-buffer using two unique delimiters:
 std::string extractBetween(
@@ -9,9 +12,9 @@ std::string extractBetween(
     const std::string &start_delimiter,
     const std::string &stop_delimiter)
 {
-    unsigned first_delim_pos = buffer.find(start_delimiter) + 1 ; // add '\n' char
+    unsigned first_delim_pos = buffer.find(start_delimiter);
     unsigned end_pos_of_first_delim = first_delim_pos + start_delimiter.length();
-    unsigned last_delim_pos = buffer.find(stop_delimiter) - 1; // minus '\n' char
+    unsigned last_delim_pos = buffer.find(stop_delimiter);
 
     return buffer.substr(end_pos_of_first_delim,
         last_delim_pos - end_pos_of_first_delim);
@@ -48,21 +51,152 @@ std::map<std::string,int> get_BC_type()
     return BC_type;
 }
 
+// Split and input strings and return a vector with all values
+std::vector<double> str2double(const std::string &str)
+{
+    std::stringstream ss(str);
+    std::istream_iterator<double> begin(ss);
+    std::istream_iterator<double> end;
+    std::vector<double> values(begin,end);
+    return values;
+}
+
+// Get entity Tag and its associated physical Tag.
+std::tuple<size_t, int> get_entity(const std::string &line, const size_t &Idx)
+{
+    size_t entityTag;
+    size_t numPhysicalTags; 
+    int physicalTag;
+
+    auto vector = str2double(line);
+
+    switch (Idx) {
+        case 1: // case for nodes
+            // 1. get entityTag
+            entityTag = int(vector[0]);
+
+            // 2. get entity coordiantes // not needed
+
+            // 3. get physical tag associated
+            numPhysicalTags = int(vector[4]);
+            if (numPhysicalTags==0) {
+                physicalTag = -1; // set a negative tag!
+            } else {
+                physicalTag = int(vector[5]);
+            }
+            break;
+        default: // otherwise
+            // 1. get entityTag
+            entityTag = int(vector[0]);
+
+            // 2. get entity coordiantes // not needed
+
+            // 3. get physical tag associated
+            numPhysicalTags = int(vector[7]);
+            if (numPhysicalTags==0) {
+                physicalTag = -1; // set a negative tag!
+            } else {
+                physicalTag = int(vector[8]);
+            }
+            // 4. get tags of subentities. // not needed
+            break;
+    }
+    return {entityTag, physicalTag};
+}
+
+// Get partitioned entity Tags and its associated physical Tag.
+std::tuple<size_t, size_t, int, int> get_partitionedEntity(const std::string &line, const size_t &Idx)
+{
+    size_t entityTag, parentTag; 
+    size_t numPhysicalTags, numPartitionsTags; 
+    int partitionTag, physicalTag;
+
+    auto vector = str2double(line);
+
+    switch (Idx) {
+        case 1: // case for nodes
+            // 1. get entityTag
+            entityTag = int(vector[0]);
+
+            // 2. get parent dimension and tag
+            //parentDim = int(vector[1]); // not needed
+            parentTag = int(vector[2]);
+
+            // 3. get partitions tags
+            numPartitionsTags = int(vector[3]);
+            if (numPartitionsTags > 1) { // --> mark it as an interface element!
+                partitionTag = -1;
+            } else {
+                partitionTag = int(vector[4]);
+            }
+
+            // 4. get entity coordiantes // not needed
+
+            // 5. get physical tag associated
+            numPhysicalTags = int(vector[7+numPartitionsTags]);
+            if (numPhysicalTags==0) {
+                physicalTag = -1; // set a negative tag!
+            } else {
+                physicalTag = int(vector[8+numPartitionsTags]);
+            }
+            break;
+        default: //otherwise
+            // 1. get entityTag
+            entityTag = int(vector[0]);
+
+            // 2. get parent dimension and tag
+            //parentDim = int(vector[1]); // not needed
+            parentTag = int(vector[2]);
+
+            // 3. get partitions tags
+            numPartitionsTags = int(vector[3]);
+            if (numPartitionsTags > 1) { // --> mark it as an interface element!
+                partitionTag = -1; // set a negative tag!
+            } else {
+                partitionTag = int(vector[4]);
+            }
+
+            // 4. get entity coordiantes // not needed
+
+            // 5. get physical tag associated
+            numPhysicalTags = int(vector[10+numPartitionsTags]);
+            if (numPhysicalTags==0) {
+                physicalTag = -1;
+            } else {
+                physicalTag = int(vector[12+numPartitionsTags]);
+            }
+            break;
+    }
+    return {entityTag, parentTag, partitionTag, physicalTag};
+}
+
 int main() {
 
-    // We assume that the maximun dimension within the physical groups
-    // will be the maximun dimension of the problem
-    size_t phys_MAX_DIM = 0; // initial guess
-    size_t phys_MIN_DIM = 3; // initial guess
+    //-------------------------------------
+    // Global Parameter of the reader
+    //-------------------------------------
 
-    // Print comments 
-    bool DEBUG = true; // print all all warnings and stage messages
+    // Nominal dimension of the meshed geometry
+    size_t phys_DIM = 0; // initial guess
+
+    // Is the mesh a single partition?
+    bool single_domain = true; // Initial guess
 
     // Index correction factor
     size_t one = 1; // if we set one=0, one recovers the original indexes of GMSH.
 
+    // Print comments 
+    bool DEBUG = true; // print all all warnings and stage messages
+
+    // Build Maps variables
+    std::map<size_t, std::string> phys2names;
+    std::map<size_t, int> point2phys, point2part, point2geom;
+    std::map<size_t, int> curve2phys, curve2part, curve2geom;
+    std::map<size_t, int> surf2phys, surf2part, surf2geom;
+    std::map<size_t, int> volm2phys, volm2part, volm2geom;
+
     // Last by not least, open meshfile:    
-    std::ifstream file("../../meshes/square_v4_2P.msh");
+    std::ifstream file("../../meshes/rectangle_v4.msh");
     //std::ifstream fichier(mesh_file); 
 
     //-------------------------------------
@@ -76,12 +210,12 @@ int main() {
         file.close();
 
         // Initialized sub-buffers
-        std::string MeshFormat    = extractBetween(buffer.str(),"$MeshFormat","$EndMeshFormat");
-        std::string PhysicalNames = extractBetween(buffer.str(),"$PhysicalNames","$EndPhysicalNames");
-        std::string Entities      = extractBetween(buffer.str(),"$Entities","$EndEntities");
-        std::string PartEntities  = extractBetween(buffer.str(),"$PartitionedEntities","$EndPartitionedEntities");
-        std::string Nodes         = extractBetween(buffer.str(),"$Nodes","$EndNodes");
-        std::string Elements      = extractBetween(buffer.str(),"$Elements","$EndElements");
+        std::string MeshFormat    = extractBetween(buffer.str(),"$MeshFormat\n","\n$EndMeshFormat");
+        std::string PhysicalNames = extractBetween(buffer.str(),"$PhysicalNames\n","\n$EndPhysicalNames");
+        std::string Entities      = extractBetween(buffer.str(),"$Entities\n","\n$EndEntities");
+        std::string PartEntities  = extractBetween(buffer.str(),"$PartitionedEntities\n","\n$EndPartitionedEntities");
+        std::string Nodes         = extractBetween(buffer.str(),"$Nodes\n","\n$EndNodes");
+        std::string Elements      = extractBetween(buffer.str(),"$Elements\n","\n$EndElements");
 
         // Sanity check
         if (  MeshFormat.empty() ) {std::cout << " Error - Wrong File Format!" << std::endl; std::exit(-1);}
@@ -90,12 +224,9 @@ int main() {
         if (    Nodes.empty()    ) {std::cout << " Error - Nodes are missing!" << std::endl; std::exit(-1);}
         if (   Elements.empty()  ) {std::cout << " Error - No Elements found!" << std::endl; std::exit(-1);}
 
-        //if(DEBUG) std::cout << MeshFormat << std::endl;
-        //if(DEBUG) std::cout << PhysicalNames << std::endl;
-        //if(DEBUG) std::cout << Entities << std::endl;
-        //if(DEBUG) std::cout << PartEntities << std::endl;
-        //if(DEBUG) std::cout << Nodes << std::endl;
-        //if(DEBUG) std::cout << Elements << std::endl;
+        // Is it a single or partitioned domain?
+        if ( PartEntities.empty()) {single_domain = true;} else {single_domain = false;}
+        if(DEBUG) std::cout << "Partitioned domain detected" << std::endl;
 
         // For reading the buffer line by line
         std::string line;
@@ -120,24 +251,14 @@ int main() {
                 std::cout << " Error - Binary file not allowed" << std::endl; 
                 std::exit(-1);
             }
+        // Clear Buffer
+        buffer_MF.str(std::string());  // this is equivalent to: buffer.str("");
 
         /**************************/
         // Read PhysicalNames
         /**************************/
         std::stringstream buffer_PN;
         buffer_PN << PhysicalNames;
-
-            // NOTE:
-            // The lines in the PhysicalNames section should look like the following:
-            // 
-            // $PhysicalNames
-            // 5
-            // 2 1 "left BC"
-            // 2 3 "right BC"
-            // 2 4 "top BC"
-            // 2 5 "bottom BC"
-            // 3 2 "volume"
-            // $EndPhysicalNames
 
             size_t num_physical_groups = 0;
             buffer_PN >> num_physical_groups;
@@ -152,34 +273,28 @@ int main() {
                 std::string phys_name;
                 buffer_PN >> phys_dim >> phys_id >> phys_name;
 
-                if(DEBUG) std::cout << " gmsh physical: " << phys_id << std::endl;
-                if(DEBUG) std::cout << " dimension: " << phys_dim << std::endl;
-                if(DEBUG) std::cout << " name: " << phys_name << std::endl;
-
-                // Not sure if this is true for all Gmsh files, but
-                // my test file has quotes around the phys_name string.
-                // So let's erase any quotes now...
+                // get rid of the quotes characters from the phys_name
                 phys_name.erase(std::remove(phys_name.begin(), phys_name.end(), '"'), phys_name.end());
 
-                // // Record this ID for later assignment of subdomain/sideset names.
-                // gmsh_physicals[phys_id] = std::make_pair(phys_dim, phys_name);
+                // create a map between phys_id to phys_name.
+                phys2names[phys_id] = phys_name;
 
-                // if(DEBUG) std::cout << " phys_dim: " << std::get<0>(gmsh_physicals[phys_id]) << std::endl;
-                // if(DEBUG) std::cout << " phys_name: " << std::get<1>(gmsh_physicals[phys_id]) << std::endl;
+                // Search for the maximun dimension of entities in the mesh
+                phys_DIM = phys_DIM > phys_dim ? phys_DIM : phys_dim;
 
-                // Search for the maximun and minimun dimensions of the computational domain:
-                phys_MAX_DIM = phys_MAX_DIM > phys_dim ? phys_MAX_DIM : phys_dim;
-                phys_MIN_DIM = phys_MIN_DIM < phys_dim ? phys_MIN_DIM : phys_dim;
-
-                if(DEBUG) std::cout << " MAX_DIM: " << phys_MAX_DIM << std::endl;
-                if(DEBUG) std::cout << " MIN_DIM: " << phys_MIN_DIM << std::endl;
+                if(DEBUG) std::cout << " Physical Name: " << phys_name << std::endl;
+                if(DEBUG) std::cout << " Physical ID: " << phys_id << std::endl;
+                if(DEBUG) std::cout << " Entity Dim: " << phys_dim << std::endl;
             }
+        // Clear Buffer
+        buffer_PN.str(std::string());
 
-        /**************************/
-        // Read Entities
-        /**************************/
-        std::stringstream buffer_Ent;
-        buffer_Ent << Entities;
+        if (single_domain) {
+            /**************************/
+            // Read Entities
+            /**************************/
+            std::stringstream buffer_Ent;
+            buffer_Ent << Entities;
 
             size_t numPoints  = 0;
             size_t numCurves  = 0;
@@ -191,41 +306,122 @@ int main() {
             if(DEBUG) std::cout << " numCurves: "   << numCurves   << std::endl;
             if(DEBUG) std::cout << " numSurfaces: " << numSurfaces << std::endl;
             if(DEBUG) std::cout << " numVolumes: "  << numVolumes  << std::endl;
+            std::getline(buffer_Ent, line);
 
+            // Read Nodes
+            if (numPoints>0) {
+                for (size_t i=0; i<numPoints; i++)
+                {
+                    std::getline(buffer_Ent, line);
+                    auto [ID, phys_ID] = get_entity(line,1); //1:node
+                    std::cout << ID << phys_ID << std::endl;
+                    //point2phys[ID] = phys_ID;
+                }
+            }
+            // Read Curves
+            if (numCurves>0) {
+                for (size_t i=0; i<numCurves; i++)
+                {
+                    std::getline(buffer_Ent, line);
+                    auto [ID, phys_ID] = get_entity(line,2); //2:curve
+                    curve2phys[ID] = phys_ID;
+                }
+            }
+            // Read Surfaces
+            if (numSurfaces>0) {
+                for (size_t i=0; i<numSurfaces; i++)
+                {
+                    std::getline(buffer_Ent, line);
+                    auto [ID, phys_ID] = get_entity(line,3); //3:surface
+                    surf2phys[ID] = phys_ID;
+                }
+            }
+            // Read Volumes
+            if (numVolumes>0) {
+                for (size_t i=0; i<numVolumes; i++)
+                {
+                    std::getline(buffer_Ent, line);
+                    auto [ID, phys_ID] = get_entity(line,4); //4:volume
+                    volm2phys[ID] = phys_ID;
+                }
+            }
+            // Clear Buffer
+            buffer_Ent.str(std::string());
 
-        /**************************/
-        // Read Partitioned Entities
-        /**************************/
-        if (not(PartEntities.empty()))
-        {
-            std::cout << "Partitioned domain detected" << std::endl;
+        } else {
+            /**************************/
+            // Read Partitioned Entities
+            /**************************/
             std::stringstream buffer_PEnt;
             buffer_PEnt << PartEntities;
             
-                size_t numPartitions = 0;
-                buffer_PEnt >> numPartitions;
+            size_t numPartitions = 0;
+            buffer_PEnt >> numPartitions;
 
-                std::getline(buffer_PEnt, line);
-                size_t numGhostEntities = 0;
-                buffer_PEnt >> numGhostEntities; // not used for the moment
+            std::getline(buffer_PEnt, line);
+            size_t numGhostEntities = 0;
+            buffer_PEnt >> numGhostEntities; // not used for the moment
 
-                std::getline(buffer_PEnt, line);
-                size_t numPartPoints  = 0;
-                size_t numPartCurves  = 0;
-                size_t numPartSurfaces= 0;
-                size_t numPartVolumes = 0;
-                buffer_PEnt >> numPartPoints >> numPartCurves >> numPartSurfaces >> numPartVolumes;
+            std::getline(buffer_PEnt, line);
+            size_t numPoints  = 0;
+            size_t numCurves  = 0;
+            size_t numSurfaces= 0;
+            size_t numVolumes = 0;
+            buffer_PEnt >> numPoints >> numCurves >> numSurfaces >> numVolumes;
 
-                if(DEBUG) std::cout << " numPartitions: " << numPartitions   << std::endl;
-                if(DEBUG) std::cout << " numPoints: "     << numPartPoints   << std::endl;
-                if(DEBUG) std::cout << " numCurves: "     << numPartCurves   << std::endl;
-                if(DEBUG) std::cout << " numSurfaces: "   << numPartSurfaces << std::endl;
-                if(DEBUG) std::cout << " numVolumes: "    << numPartVolumes  << std::endl;
+            if(DEBUG) std::cout << " numPartitions: " << numPartitions << std::endl;
+            if(DEBUG) std::cout << " numPoints: "     << numPoints     << std::endl;
+            if(DEBUG) std::cout << " numCurves: "     << numCurves     << std::endl;
+            if(DEBUG) std::cout << " numSurfaces: "   << numSurfaces   << std::endl;
+            if(DEBUG) std::cout << " numVolumes: "    << numVolumes    << std::endl;
+            std::getline(buffer_PEnt, line);
 
-                // Clear Buffer
-                buffer_PEnt.str(std::string());
-        } else {
-            // Do nothing !
+            // Read Nodes
+            if (numPoints>0) {
+                for (size_t i=0; i<numPoints; i++)
+                {
+                    std::getline(buffer_PEnt, line);
+                    auto [chld_ID, prnt_ID, part_ID, phys_ID] = get_partitionedEntity(line,1); //1:node
+                    point2part[chld_ID] = part_ID;
+                    point2phys[chld_ID] = phys_ID;
+                    point2geom[chld_ID] = prnt_ID;
+                }
+            }
+            // Read Curves
+            if (numCurves>0) {
+                for (size_t i=0; i<numCurves; i++)
+                {
+                    std::getline(buffer_PEnt, line);
+                    auto [chld_ID, prnt_ID, part_ID, phys_ID] = get_partitionedEntity(line,2); //2:curve
+                    curve2part[chld_ID] = part_ID;
+                    curve2phys[chld_ID] = phys_ID;
+                    curve2geom[chld_ID] = prnt_ID;
+                }
+            }
+            // Read Surfaces
+            if (numSurfaces>0) {
+                for (size_t i=0; i<numSurfaces; i++)
+                {
+                    std::getline(buffer_PEnt, line);
+                    auto [chld_ID, prnt_ID, part_ID, phys_ID] = get_partitionedEntity(line,3); //3:surface
+                    surf2part[chld_ID] = part_ID;
+                    surf2phys[chld_ID] = phys_ID;
+                    surf2geom[chld_ID] = prnt_ID;
+                }
+            }
+            // Read Volumes
+            if (numVolumes>0) {
+                for (size_t i=0; i<numVolumes; i++)
+                {
+                    std::getline(buffer_PEnt, line);
+                    auto [chld_ID, prnt_ID, part_ID, phys_ID] = get_partitionedEntity(line,4); //4:volume
+                    volm2part[chld_ID] = part_ID;
+                    volm2phys[chld_ID] = phys_ID;
+                    volm2geom[chld_ID] = prnt_ID;
+                }
+            }
+            // Clear Buffer
+            buffer_PEnt.str(std::string());
         }
 
         /**************************/
@@ -245,6 +441,11 @@ int main() {
             if(DEBUG) std::cout << " minNodeIndex: "   << minNodeIndex-one << std::endl;
             if(DEBUG) std::cout << " maxNodeIndex: "   << maxNodeIndex-one << std::endl;
 
+            //V = get_nodes(buffer_N,runNodesBlocks,numNodes);
+
+        // Clear Buffer
+        buffer_N.str(std::string());
+
         /**************************/
         // Read Elements
         /**************************/
@@ -261,16 +462,12 @@ int main() {
             if(DEBUG) std::cout << " numElements: "   << numElements      << std::endl;
             if(DEBUG) std::cout << " minElemIndex: "  << minElemIndex-one << std::endl;
             if(DEBUG) std::cout << " maxElemIndex: "  << maxElemIndex-one << std::endl;
-        
-        /**************************/
-        // Clear Buffers
-        /**************************/
-        buffer_MF.str(std::string());  // this is equivalent to: buffer.str("");
-        buffer_PN.str(std::string());
-        buffer_Ent.str(std::string());
-        buffer_N.str(std::string());
-        buffer_E.str(std::string());
 
+            // Read all elements
+
+        // Clear Buffer
+        buffer_E.str(std::string());
+        
     } else {
         //std::cout << "Could not open file: " << mesh_file << std::endl; 
         std::exit(-1);
