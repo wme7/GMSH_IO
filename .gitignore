@@ -33,6 +33,7 @@
 
 # Python binaries
 *.npz
+*.npy
 
 # Matlab automated saving files
 *.asv

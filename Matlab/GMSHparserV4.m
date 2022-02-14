@@ -321,7 +321,7 @@ for ent = 1:numEntityBlocks
                 else
                     PE.geom_tag(e15,1) = entityTag;
                 end
-            otherwise, error('element not in list');
+            otherwise, error('ERROR: element type not in list');
         end
     end
 end

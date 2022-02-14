@@ -56,10 +56,7 @@ public:
         {
            m_total_size *= dim[i];
            m_dims.push_back(dim[i]);
-           //std::cout << "dim" << dim[i] << std::endl;
         }
-        //std::cout << "total size :" << std::endl;
-        //std::cout << m_total_size << std::endl;
         m_data = new T[m_total_size];
         m_allocated = true;
         m_owned = true;
@@ -73,6 +70,21 @@ public:
         for(size_t i=0;i<m_total_size;i++)
             {m_data[i] = val;}
     }
+    MArray(std::vector<size_t> const& dim, std::vector<T> const& vec)
+    {
+        //std::cout << "constructor by dim with vector array" << std::endl;
+        m_D = D;
+        m_total_size=1;
+        for (auto element : dim){ m_total_size *= element;}
+        if (m_total_size==vec.size()) {
+            allocate(dim);
+            for(size_t i=0;i<m_total_size;i++) {
+                m_data[i] = vec[i];
+            }
+        } else {
+            std::cout<<"MArray and input vector have incompatible sizes" <<std::endl;
+        }
+    }
     ~MArray()
     {
         if (m_allocated==true && m_owned==true)
@@ -82,7 +94,7 @@ public:
         }
         else
         {
-            //std::cout<<"not allocated !" <<std::endl; 
+            std::cout<<"MArray not allocated :P" <<std::endl; 
         }
     };
 

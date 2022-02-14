@@ -13,6 +13,7 @@
 
 // local libs
 #include "MdimArray.hpp"
+#include "NpyArray.hpp"
 
 // Get a sub-string from the main string-buffer using two unique delimiters:
 std::string extractBetween(
@@ -208,7 +209,7 @@ std::tuple<size_t, size_t, int, int> get_partitionedEntity(const std::string &li
 MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodesBlocks, const size_t &numNodes) 
 {
     // Allocate output
-    MArray<double,2> V({numNodes,3}); V.set_value(0.0); // [x(:),y(:),z(:)]
+    MArray<double,2> V({numNodes,3},0); // [x(:),y(:),z(:)]
 
     // Node counter
     size_t n=0;
@@ -337,7 +338,7 @@ int GMSHparserV4(std::string mesh_file)
         buffer_MF.str(std::string());  // this is equivalent to: buffer.str("");
 
         /**************************/
-        // Read PhysicalNames
+        // 2. Read PhysicalNames
         /**************************/
         std::stringstream buffer_PN;
         buffer_PN << PhysicalNames;
@@ -373,7 +374,7 @@ int GMSHparserV4(std::string mesh_file)
 
         if (single_domain) {
             /**************************/
-            // Read Entities
+            // 3. Read Entities
             /**************************/
             std::stringstream buffer_Ent;
             buffer_Ent << Entities;
@@ -396,8 +397,7 @@ int GMSHparserV4(std::string mesh_file)
                 {
                     std::getline(buffer_Ent, line);
                     auto [ID, phys_ID] = get_entity(line,1); //1:node
-                    std::cout << ID << phys_ID << std::endl;
-                    //point2phys[ID] = phys_ID;
+                    point2phys[ID] = phys_ID;
                 }
             }
             // Read Curves
@@ -431,9 +431,9 @@ int GMSHparserV4(std::string mesh_file)
             buffer_Ent.str(std::string());
 
         } else {
-            /**************************/
-            // Read Partitioned Entities
-            /**************************/
+            /*******************************/
+            // 4. Read Partitioned Entities
+            /*******************************/
             std::stringstream buffer_PEnt;
             buffer_PEnt << PartEntities;
             
@@ -507,7 +507,7 @@ int GMSHparserV4(std::string mesh_file)
         }
 
         /**************************/
-        // Read Nodes
+        // 5. Read Nodes
         /**************************/
         std::stringstream buffer_N;
         buffer_N << Nodes;
@@ -533,7 +533,7 @@ int GMSHparserV4(std::string mesh_file)
         buffer_N.str(std::string());
 
         /**************************/
-        // Read Elements
+        // 6. Read Elements
         /**************************/
         std::stringstream buffer_E;
         buffer_E << Elements;
@@ -578,23 +578,67 @@ int GMSHparserV4(std::string mesh_file)
             // Read Elements in block
             for (size_t i=0; i<numElementsInBlock; i++)
             {
-                std::getline(buffer_E, line);
+                std::getline(buffer_E,line);
                 auto line_data = str2size_t(line);
                 switch (elementType) // <-- Should use entityDim, but we only search 4 type of elements
                 {
                 case 1: /* Line elements */
                     e1 = e1 + 1; // update element counter
+                    LE.Etype.push_back(elementType);
+                    LE.EToV.push_back(line_data[1]-one);
+                    LE.EToV.push_back(line_data[2]-one);
+                    LE.phys_tag.push_back(curve2phys[entityTag]);
+                    if (not(single_domain)) {
+                        LE.geom_tag.push_back(curve2geom[entityTag]);
+                        LE.part_tag.push_back(curve2part[entityTag]);
+                    } else {
+                        LE.geom_tag.push_back(entityTag);
+                    }
                     break;
                 case 2: /* triangle elements */
                     e2 = e2 + 1; // update element counter
+                    SE.Etype.push_back(elementType);
+                    SE.EToV.push_back(line_data[1]-one);
+                    SE.EToV.push_back(line_data[2]-one);
+                    SE.EToV.push_back(line_data[3]-one);
+                    SE.phys_tag.push_back(surf2phys[entityTag]);
+                    if (not(single_domain)) {
+                        SE.geom_tag.push_back(surf2geom[entityTag]);
+                        SE.part_tag.push_back(surf2part[entityTag]);
+                    } else {
+                        SE.geom_tag.push_back(entityTag);
+                    }
                     break;
                 case 4: /* tetrahedron elements */
                     e4 = e4 + 1; // update element counter
+                    VE.Etype.push_back(elementType);
+                    VE.EToV.push_back(line_data[1]-one);
+                    VE.EToV.push_back(line_data[2]-one);
+                    VE.EToV.push_back(line_data[3]-one);
+                    VE.EToV.push_back(line_data[4]-one);
+                    VE.phys_tag.push_back(volm2phys[entityTag]);
+                    if (not(single_domain)) {
+                        VE.geom_tag.push_back(volm2geom[entityTag]);
+                        VE.part_tag.push_back(volm2part[entityTag]);
+                    } else {
+                        VE.geom_tag.push_back(entityTag);
+                    }
                     break;
                 case 15: /* point elements */
                     e15 = e15 + 1; // update element counter
+                    PE.Etype.push_back(elementType);
+                    PE.EToV.push_back(line_data[1]-one);
+                    PE.phys_tag.push_back(point2phys[entityTag]);
+                    if (not(single_domain)) {
+                        PE.geom_tag.push_back(point2geom[entityTag]);
+                        PE.part_tag.push_back(point2part[entityTag]);
+                    } else {
+                        PE.geom_tag.push_back(entityTag);
+                    }
                     break;
                 default:
+                    std::cout << "ERROR: element type not in list"<< std::endl;
+                    std::exit(-1);
                     break;
                 }
             }
@@ -610,6 +654,26 @@ int GMSHparserV4(std::string mesh_file)
         }
         // Clear Buffer
         buffer_E.str(std::string());
+
+        /**************************/
+        // 7. Save parsed arrays
+        /**************************/
+
+        // Save to Numpy Array
+        cnpy::npy_save("FEMmesh.npy",&PE.EToV[0],{e15,1},"w");
+        cnpy::npy_save("FEMmesh.npy",&LE.EToV[0],{ e1,2},"a");
+        cnpy::npy_save("FEMmesh.npy",&SE.EToV[0],{ e2,3},"a");
+        cnpy::npy_save("FEMmesh.npy",&VE.EToV[0],{ e4,4},"a");
+
+        /**************************/
+        // 8. Print parsed arrays
+        /**************************/
+
+        // Save to MdimArrays
+        MArray<size_t,2> PEToV({e15,1},PE.EToV); PEToV.print();
+        MArray<size_t,2> LEToV({ e1,2},LE.EToV); LEToV.print();
+        MArray<size_t,2> SEToV({ e2,3},SE.EToV); SEToV.print();
+        MArray<size_t,2> VEToV({ e4,4},VE.EToV); VEToV.print();
         
     } else {
         std::cout << "Could not open file: " << mesh_file << std::endl; 
