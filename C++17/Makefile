@@ -30,7 +30,7 @@ dep = $(obj:.o=.d)
 EXTLIB  = -L$(HDF_INSTALL)/lib 
 # CC      = g++
 CC      = mpicxx
-CFLAGS  = -O3 -Wall -Wextra  -std=c++11 
+CFLAGS  = -O3 -Wall -Wextra  -std=c++17 
 LDFLAGS =
 LIB     = -lz -lm -ldl 
 INCLUDE = -I$(INC_DIR) -I$(HDF_INSTALL)/include -I$(EIGEN_INSTALL)
@@ -39,20 +39,20 @@ INCLUDE = -I$(INC_DIR) -I$(HDF_INSTALL)/include -I$(EIGEN_INSTALL)
 LIBSHDF = $(EXTLIB) -lhdf5
 
 # APPs to be compiled
-EXE_MSH1=$(EXE_DIR)/GMSHparserV2.run
-EXE_MSH2=$(EXE_DIR)/GMSHparserV4.run
+EXE_MSH1=$(EXE_DIR)/TestParsers.run
+EXE_MSH2=$(EXE_DIR)/GMSHparserV2.run
 
 # Compilation process for:
 all: tests
-tests: $(EXE_DIR) $(EXE_MSH1) $(EXE_MSH2) 
+tests: $(EXE_DIR) $(EXE_MSH1) #$(EXE_MSH2) 
 
 $(EXE_DIR):
 	${MKDIR_P} $(EXE_DIR)
 
-$(EXE_MSH1): $(APP_DIR)/GMSHparserV2.o
+$(EXE_MSH1): $(APP_DIR)/TestParsers.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) $(INCLUDE) $(LIBSHDF) $(LIB)
 
-$(EXE_MSH2): $(APP_DIR)/GMSHparserV4.o
+$(EXE_MSH2): $(APP_DIR)/GMSHparserV2.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) $(INCLUDE) $(LIBSHDF) $(LIB)
 
 $(APP_DIR)/%.o: $(APP_DIR)/%.cpp

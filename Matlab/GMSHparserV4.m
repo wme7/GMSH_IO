@@ -251,15 +251,18 @@ numElements     = line_data(2);
 %maxElementsTag  = line_data(4); % not needed
 
 % Allocate space for Elements data
-PE.EToV=[]; PE.phys_tag=[]; PE.geom_tag=[]; PE.part_tag=[]; PE.Etype=[];
-LE.EToV=[]; LE.phys_tag=[]; LE.geom_tag=[]; LE.part_tag=[]; LE.Etype=[];
-SE.EToV=[]; SE.phys_tag=[]; SE.geom_tag=[]; SE.part_tag=[]; SE.Etype=[];
-VE.EToV=[]; VE.phys_tag=[]; VE.geom_tag=[]; VE.part_tag=[]; VE.Etype=[];
+PE = struct('EToV',{[]},'phys_tag',{[]},'geom_tag',{[]},'Etype',{[]});
+LE = struct('EToV',{[]},'phys_tag',{[]},'geom_tag',{[]},'Etype',{[]});
+SE = struct('EToV',{[]},'phys_tag',{[]},'geom_tag',{[]},'Etype',{[]});
+VE = struct('EToV',{[]},'phys_tag',{[]},'geom_tag',{[]},'Etype',{[]});
 
-e0 = 0; % point Element counter
+% Element counters
 e1 = 0; % Lines Element counter
 e2 = 0; % Triangle Element counter
-e3 = 0; % Tetrehedron Element counter
+e4 = 0; % Tetrahedron Element counter
+e15 = 0; % point Element counter
+
+% Read elements blocks
 for ent = 1:numEntityBlocks
     l = l+1; % update line counter
     line_data = sscanf(cells_E{l},'%d %d %d %d');
@@ -267,12 +270,13 @@ for ent = 1:numEntityBlocks
     entityTag = line_data(2); % this is: Entity.ID | Entity.child_ID
     elementType = line_data(3); % 1:line, 2:triangle, 4:tetrahedron, 15:point
     numElementsInBlock = line_data(4);
-    %
+    
+    % Read Elements in block
     for i=1:numElementsInBlock
         l = l+1; % update line counter
         line_data = sscanf(cells_E{l},'%d %d %d %d');
         %elementID = line_data(1); % we use a local numbering instead
-        switch elementType % <-- shoudl be entityDim, but we only use 4 element types
+        switch elementType % <-- Should use entittyDim, but we only search 4 type of elements
             case 1 % Line elements
                 e1 = e1 + 1; % update element counter
                 LE.Etype(e1,1) = elementType;
@@ -296,38 +300,38 @@ for ent = 1:numEntityBlocks
                     SE.geom_tag(e2,1) = entityTag;
                 end
             case 4 % tetrahedron elements
-                e3 = e3 + 1; % update element counter
-                VE.Etype(e3,1) = elementType;
-                VE.EToV(e3,:) = line_data(2:5);
-                VE.phys_tag(e3,1) = volm2Phys(entityTag);
+                e4 = e4 + 1; % update element counter
+                VE.Etype(e4,1) = elementType;
+                VE.EToV(e4,:) = line_data(2:5);
+                VE.phys_tag(e4,1) = volm2Phys(entityTag);
                 if not(single_domain)
-                    VE.geom_tag(e3,1) = volm2Geom(entityTag);
-                    VE.part_tag(e3,1) = volm2Part(entityTag);
+                    VE.geom_tag(e4,1) = volm2Geom(entityTag);
+                    VE.part_tag(e4,1) = volm2Part(entityTag);
                 else 
-                    VE.geom_tag(e3,1) = entityTag;
+                    VE.geom_tag(e4,1) = entityTag;
                 end
             case 15 % Point elements
-                e0 = e0 + 1; % update element counter
-                PE.Etype(e0,1) = elementType;
-                PE.EToV(e0,:) = line_data(2);
-                PE.phys_tag(e0,1) = point2Phys(entityTag);
+                e15 = e15 + 1; % update element counter
+                PE.Etype(e15,1) = elementType;
+                PE.EToV(e15,:) = line_data(2);
+                PE.phys_tag(e15,1) = point2Phys(entityTag);
                 if not(single_domain)
-                    PE.geom_tag(e0,1) = point2Geom(entityTag);
-                    PE.part_tag(e0,1) = point2Part(entityTag);
+                    PE.geom_tag(e15,1) = point2Geom(entityTag);
+                    PE.part_tag(e15,1) = point2Part(entityTag);
                 else
-                    PE.geom_tag(e0,1) = entityTag;
+                    PE.geom_tag(e15,1) = entityTag;
                 end
             otherwise, error('element not in list');
         end
     end
 end
 %
-fprintf('Total point-elements found = %d\n',e0);
+fprintf('Total point-elements found = %d\n',e15);
 fprintf('Total line-elements found = %d\n',e1);
 fprintf('Total surface-elements found = %d\n',e2);
-fprintf('Total volume-elements found = %d\n',e3);
+fprintf('Total volume-elements found = %d\n',e4);
 % Sanity check
-if numElements ~= (e0+e1+e2+e3)
+if numElements ~= (e15+e1+e2+e4)
     error('Total number of elements missmatch!'); 
 end
 %
@@ -344,9 +348,7 @@ function entity = get_entity(str_line,type)
             entityTag = vector(1);
 
             % 3. get entity coordinates % not needed
-            %X = vector(2); 
-            %Y = vector(3);
-            %Z = vector(4);
+            % ignore indexes 2, 3, 4
 
             % 3. get physical tag associated
             numPhysicalTags = vector(5);
@@ -361,12 +363,7 @@ function entity = get_entity(str_line,type)
             entityTag = vector(1);
         
             % 2. get entity boxing limits (for visualization) % not needed
-            %minX = vector(2); 
-            %minY = vector(3);
-            %minZ = vector(4);
-            %maxX = vector(5);
-            %maxY = vector(6);
-            %maxZ = vector(7);
+            % ignore indexes 2, 3, 4, 5, 6, 7
             
             % 3. get physical tag associated
             numPhysicalTags = vector(8);
@@ -410,9 +407,7 @@ function entity = get_partitionedEntity(str_line,type)
             end
 
             % 4. get entity coordinates % not needed
-            %X = vector(5+j); 
-            %Y = vector(6+j);
-            %Z = vector(7+j);
+            % ignore indexes 5+j, 6+j, 7+j
 
             % 5. get physical tag associated
             numPhysicalTags = vector(8+j);
@@ -439,12 +434,7 @@ function entity = get_partitionedEntity(str_line,type)
             end
 
             % 3. get entity boxing limits (for visualization) % not needed
-            %minX = vector( 5+j); 
-            %minY = vector( 6+j);
-            %minZ = vector( 7+j);
-            %maxX = vector( 8+j); 
-            %maxY = vector( 9+j);
-            %maxZ = vector(10+j);
+            % ignore indexes 5+j, 6+j, 7+j, 8+j, 9+j, 10+j
             
             % 4. get physical tag associated
             numPhysicalTags = vector(11+j);
@@ -475,23 +465,22 @@ function V = get_nodes(cells_N,numNodeBlocks,numNodes)
     l = 1; % this is the parameters line
     % Read nodes blocks:   (can be read in parallel!)
     for ent = 1:numNodeBlocks
-        l = l+1; % update line counter
-        %
-        % Block parameters
+        % Read Block parameters
+        l = l+1;
         line_data = sscanf(cells_N{l},'%d %d %d %d');
         %entityDim = line_data(1);  % not needed
         %entityTag = line_data(2);  % not needed
         %parametric = line_data(3); % not needed
         numNodesInBlock = line_data(4);
-        %
-        % Nodes IDs
+        
+        % Read Nodes IDs
         nodeTag = zeros(1,numNodesInBlock); % nodeTag
         for i=1:numNodesInBlock
             l = l+1; % update line counter
             nodeTag(i) = sscanf(cells_N{l},'%d');
         end
-        %
-        % Nodes Coordinates
+        
+        % Read Nodes Coordinates
         for i=1:numNodesInBlock
             l = l+1; % update line counter
             V(nodeTag(i),:) = sscanf(cells_N{l},'%g %g %g'); % [x(i),y(i),z(i)]
