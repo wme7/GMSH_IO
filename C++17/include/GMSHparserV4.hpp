@@ -257,7 +257,7 @@ MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodesBlock
 int GMSHparserV4(std::string mesh_file) 
 {
     //-------------------------------------
-    // 0 - Global Parameters of the parser
+    // - Global Parameters of the parser -
     //-------------------------------------
 
     // Nominal dimension of the meshed geometry
@@ -283,7 +283,7 @@ int GMSHparserV4(std::string mesh_file)
     std::ifstream file(mesh_file);
 
     //-------------------------------------
-    //  1 - READ GMSH V4.1 FORMAT
+    // -- READ GMSH V4.1 FORMAT --
     //-------------------------------------   
     if (file)
     {   
@@ -320,20 +320,21 @@ int GMSHparserV4(std::string mesh_file)
         std::stringstream buffer_MF;    
         buffer_MF << MeshFormat;
 
-            double version = 1.0; size_t format=0, size=0;
-            buffer_MF >> version >> format >> size;
+        double version = 1.0; size_t format=0, size=0;
+        buffer_MF >> version >> format >> size;
+        std::cout << "Mesh version " << version << ", Binary " << format << ", endian " << size << std::endl;
 
-            // Sanity check
-            if (version != 4.1)
-            {
-                std::cout << " Error - Expected mesh format v4.1" << std::endl; 
-                std::exit(-1);
-            }
-            if (format != 0)
-            {
-                std::cout << " Error - Binary file not allowed" << std::endl; 
-                std::exit(-1);
-            }
+        // Sanity check
+        if (version != 4.1)
+        {
+            std::cout << " Error - Expected mesh format v4.1" << std::endl; 
+            std::exit(-1);
+        }
+        if (format != 0)
+        {
+            std::cout << " Error - Binary file not allowed" << std::endl; 
+            std::exit(-1);
+        }
         // Clear Buffer
         buffer_MF.str(std::string());  // this is equivalent to: buffer.str("");
 
@@ -343,32 +344,32 @@ int GMSHparserV4(std::string mesh_file)
         std::stringstream buffer_PN;
         buffer_PN << PhysicalNames;
 
-            size_t num_physical_groups = 0;
-            buffer_PN >> num_physical_groups;
+        size_t num_physical_groups = 0;
+        buffer_PN >> num_physical_groups;
 
-            if(DEBUG) std::cout << "num_physical_groups: " << num_physical_groups << std::endl;
+        if(DEBUG) std::cout << "num_physical_groups: " << num_physical_groups << std::endl;
 
-            for (size_t i=0; i<num_physical_groups; ++i)
-            {
-                // Read an entire line of the PhysicalNames section.
-                std::getline(buffer_PN, line);
-                size_t phys_dim, phys_id;
-                std::string phys_name;
-                buffer_PN >> phys_dim >> phys_id >> phys_name;
+        for (size_t i=0; i<num_physical_groups; ++i)
+        {
+            // Read an entire line of the PhysicalNames section.
+            std::getline(buffer_PN, line);
+            size_t phys_dim, phys_id;
+            std::string phys_name;
+            buffer_PN >> phys_dim >> phys_id >> phys_name;
 
-                // get rid of the quotes characters from the phys_name
-                phys_name.erase(std::remove(phys_name.begin(), phys_name.end(), '"'), phys_name.end());
+            // get rid of the quotes characters from the phys_name
+            phys_name.erase(std::remove(phys_name.begin(), phys_name.end(), '"'), phys_name.end());
 
-                // create a map between phys_id to phys_name.
-                phys2names[phys_id] = phys_name;
+            // create a map between phys_id to phys_name.
+            phys2names[phys_id] = phys_name;
 
-                // Search for the maximun dimension of entities in the mesh
-                phys_DIM = phys_DIM > phys_dim ? phys_DIM : phys_dim;
+            // Search for the maximun dimension of entities in the mesh
+            phys_DIM = phys_DIM > phys_dim ? phys_DIM : phys_dim;
 
-                if(DEBUG) std::cout << " Physical Name: " << phys_name << std::endl;
-                if(DEBUG) std::cout << " Physical ID: " << phys_id << std::endl;
-                if(DEBUG) std::cout << " Entity Dim: " << phys_dim << std::endl;
-            }
+            if(DEBUG) std::cout << " Physical Name: " << phys_name << std::endl;
+            if(DEBUG) std::cout << " Physical ID: " << phys_id << std::endl;
+            if(DEBUG) std::cout << " Entity Dim: " << phys_dim << std::endl;
+        }
         // Clear Buffer
         buffer_PN.str(std::string());
 
@@ -560,7 +561,7 @@ int GMSHparserV4(std::string mesh_file)
         size_t e1 = 0; // Lines Element counter
         size_t e2 = 0; // Triangle Element counter
         size_t e4 = 0; // Tetrahedron Element counter
-        size_t e15 = 0; // point Element counter
+        size_t e15= 0; // Point Element counter
         
         // Read elements block
         for (size_t Ent=0; Ent<numEntBlocks; Ent++)
@@ -660,10 +661,10 @@ int GMSHparserV4(std::string mesh_file)
         /**************************/
 
         // Save to Numpy Array
-        cnpy::npy_save("FEMmesh.npy",&PE.EToV[0],{e15,1},"w");
-        cnpy::npy_save("FEMmesh.npy",&LE.EToV[0],{ e1,2},"a");
-        cnpy::npy_save("FEMmesh.npy",&SE.EToV[0],{ e2,3},"a");
-        cnpy::npy_save("FEMmesh.npy",&VE.EToV[0],{ e4,4},"a");
+        //cnpy::npy_save("FEMmesh.npy",&PE.EToV[0],{e15,1},"w");
+        //cnpy::npy_save("FEMmesh.npy",&LE.EToV[0],{ e1,2},"a");
+        //cnpy::npy_save("FEMmesh.npy",&SE.EToV[0],{ e2,3},"a");
+        //cnpy::npy_save("FEMmesh.npy",&VE.EToV[0],{ e4,4},"a");
 
         /**************************/
         // 8. Print parsed arrays
@@ -676,7 +677,7 @@ int GMSHparserV4(std::string mesh_file)
         MArray<size_t,2> VEToV({ e4,4},VE.EToV); VEToV.print();
         
     } else {
-        std::cout << "Could not open file: " << mesh_file << std::endl; 
+        std::cout << "ERROR: Could not open file: " << mesh_file << std::endl; 
         std::exit(-1);
     }
     // If everything goes well ...

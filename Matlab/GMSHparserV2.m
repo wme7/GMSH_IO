@@ -92,7 +92,9 @@ cells_E    = splitlines(Elements);
 line_data = sscanf(cells_MF{1},'%f %d %d');
 info.version   = line_data(1);	% 2.2 is expected
 info.file_type = line_data(2);	% 0:ASCII or 1:Binary
-info.mode      = line_data(3);	% 1 in binary mode to detect endianness 
+info.mode      = line_data(3);	% 1 in binary mode to detect endianness
+fprintf('Mesh version %g, Binary %d, endian %d\n',...
+            info.version,info.file_type,info.mode);
 
 % Sanity check
 if (info.version ~= 2.2), error('Error - Expected mesh format v2.2'); end

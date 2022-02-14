@@ -8,19 +8,16 @@
 clear; close all;
 
 [V,~,SE,LE,~,~,info] = GMSHparserV2('../meshes/rectangle_v2.msh');
-viewInfo(info); % Display info
 figure(1); subplot(221); viewNodes(V,info);
 figure(2); subplot(221); viewLineElements(V,LE.EToV,info);
 figure(3); subplot(221); viewSurfaceElements(V,SE.EToV,info);
 
 [V,~,SE,LE,~,~,info] = GMSHparserV4('../meshes/rectangle_v4.msh');
-viewInfo(info); % Display info
 figure(1); subplot(222); viewNodes(V,info);
 figure(2); subplot(222); viewLineElements(V,LE.EToV,info);
 figure(3); subplot(222); viewSurfaceElements(V,SE.EToV,info);
 
 [V,VE,SE,LE,~,~,info] = GMSHparserV2('../meshes/cuboid_v2.msh');
-viewInfo(info); % Display info
 figure(1); subplot(223); viewNodes(V,info);
 figure(2); subplot(223); viewLineElements(V,LE.EToV,info);
 figure(3); subplot(223); viewSurfaceElements(V,SE.EToV,info);
@@ -28,7 +25,6 @@ figure(4); subplot(221); viewPartVolumes(V,VE.EToV,VE.part_tag,1,info);
 figure(4); subplot(222); viewPartVolumes(V,VE.EToV,VE.part_tag,2,info);
 
 [V,VE,SE,LE,PE,~,info] = GMSHparserV4('../meshes/cuboid_v4.msh');
-viewInfo(info); % Display info
 figure(1); subplot(224); viewNodes(V,info);
 figure(2); subplot(224); viewLineElements(V,LE.EToV,info);
 figure(3); subplot(224); viewSurfaceElements(V,SE.EToV,info);
@@ -42,14 +38,8 @@ figure(4); subplot(224); viewPartVolumes(V,VE.EToV,VE.part_tag,2,info);
 % required for comunications between partitions. 
 %                                                          M.D. 2022.01.21
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Plot/Display mesh data
+% Plot/Display mesh elements
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function viewInfo(info)
-    % Display mesh format information:
-    fprintf('Mesh version %g, Binary %d, endian %d\n',...
-            info.version,info.file_type,info.mode);
-end
-
 function viewNodes(V,info)
     % Plot nodes with global IDs:
     x = V(:,1); y = V(:,2); z = V(:,3);
