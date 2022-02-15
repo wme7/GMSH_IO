@@ -5,6 +5,8 @@ While the Matlab prototypes are self-explanatory, the C++17 equivalents are a pu
 
 This is done deliberately, so that they can be adapted and modified to any target application/code by any C++ beginner.
 
+![](figures\ScreenCapture.png)
+
 Happy coding!
 
 Manuel A. Diaz @ Pprime | Univ-Poitiers
