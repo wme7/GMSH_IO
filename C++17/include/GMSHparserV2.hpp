@@ -179,7 +179,7 @@ int GMSHparserV2(std::string mesh_file)
         if(DEBUG) std::cout << " numNodes: " << numNodes << std::endl;
 
         //V = get_nodes(buffer_N,runNodesBlocks,numNodes);
-        MArray<double,2> V = get_nodes(Nodes,numNodes);
+        MArray<double,2> V = get_nodes(Nodes,numNodes,phys_DIM); //V.print();
 
         // Report the number for nodes found
         std::cout << "Total vertices found = " << numNodes << std::endl;
@@ -234,11 +234,11 @@ int GMSHparserV2(std::string mesh_file)
                     // tags(3) : number of partitions to which the element belongs
                     // tags(4) : partition id number
                     if (tags.size()>=1) {
-                        LE.phys_tag.push_back(tags[1]);
+                        LE.phys_tag.push_back(tags[0]);
                         if (tags.size()>=2) {
-                            LE.geom_tag.push_back(tags[2]);
+                            LE.geom_tag.push_back(tags[1]);
                             if (tags.size()>=4) {
-                                LE.part_tag.push_back(tags[4]);
+                                LE.part_tag.push_back(tags[3]);
                             }
                         }
                     }
@@ -257,11 +257,11 @@ int GMSHparserV2(std::string mesh_file)
                     // tags(3) : number of partitions to which the element belongs
                     // tags(4) : partition id number
                     if (tags.size()>=1) {
-                        SE.phys_tag.push_back(tags[1]);
+                        SE.phys_tag.push_back(tags[0]);
                         if (tags.size()>=2) {
-                            SE.geom_tag.push_back(tags[2]);
+                            SE.geom_tag.push_back(tags[1]);
                             if (tags.size()>=4) {
-                                SE.part_tag.push_back(tags[4]);
+                                SE.part_tag.push_back(tags[3]);
                             }
                         }
                     }
@@ -281,11 +281,11 @@ int GMSHparserV2(std::string mesh_file)
                     // tags(3) : number of partitions to which the element belongs
                     // tags(4) : partition id number
                     if (tags.size()>=1) {
-                        VE.phys_tag.push_back(tags[1]);
+                        VE.phys_tag.push_back(tags[0]);
                         if (tags.size()>=2) {
-                            VE.geom_tag.push_back(tags[2]);
+                            VE.geom_tag.push_back(tags[1]);
                             if (tags.size()>=4) {
-                                VE.part_tag.push_back(tags[4]);
+                                VE.part_tag.push_back(tags[3]);
                             }
                         }
                     }
@@ -302,11 +302,11 @@ int GMSHparserV2(std::string mesh_file)
                     // tags(3) : number of partitions to which the element belongs
                     // tags(4) : partition id number
                     if (tags.size()>=1) {
-                        PE.phys_tag.push_back(tags[1]);
+                        PE.phys_tag.push_back(tags[0]);
                         if (tags.size()>=2) {
-                            PE.geom_tag.push_back(tags[2]);
+                            PE.geom_tag.push_back(tags[1]);
                             if (tags.size()>=4) {
-                                PE.part_tag.push_back(tags[4]);
+                                PE.part_tag.push_back(tags[3]);
                             }
                         }
                     }
@@ -340,10 +340,15 @@ int GMSHparserV2(std::string mesh_file)
         MArray<size_t,2> SEToV({ numE2,3},SE.EToV); //SEToV.print();
         MArray<size_t,2> VEToV({ numE4,4},VE.EToV); //VEToV.print();
 
-        std::cout << LE.EToV.size() << " vs " << numE1*2 << std::endl;
+        std::cout << "LE.phys_tag\n" << std::endl;
+        std::copy(LE.phys_tag.begin(), LE.phys_tag.end(), std::ostream_iterator<int>(std::cout,"\n"));
+        std::cout << "LE.geom_tag\n" << std::endl;
+        std::copy(LE.geom_tag.begin(), LE.geom_tag.end(), std::ostream_iterator<int>(std::cout,"\n"));
+        std::cout << "LE.part_tag\n" << std::endl;
+        std::copy(LE.part_tag.begin(), LE.part_tag.end(), std::ostream_iterator<int>(std::cout,"\n"));
 
         // Save to Numpy Array
-        cnpy::npz_save("../../Python3/FEMmeshV2.npz",  "V"  , V.data(), {numNodes,3},"w");
+        cnpy::npz_save("../../Python3/FEMmeshV2.npz","V",V.data(),{numNodes,phys_DIM},"w");
         cnpy::npz_save("../../Python3/FEMmeshV2.npz","PEToV",PEToV.data(),{numE15,1},"a");
         cnpy::npz_save("../../Python3/FEMmeshV2.npz","LEToV",LEToV.data(),{numE1, 2},"a");
         cnpy::npz_save("../../Python3/FEMmeshV2.npz","SEToV",SEToV.data(),{numE2, 3},"a");

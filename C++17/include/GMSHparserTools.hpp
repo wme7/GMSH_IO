@@ -222,7 +222,7 @@ std::tuple<size_t, size_t, int, int> get_partitionedEntity(const std::string &li
             if (numPhysicalTags==0) {
                 physicalTag = -1;
             } else {
-                physicalTag = int(vector[12+numPartitionsTags]);
+                physicalTag = int(vector[11+numPartitionsTags]);
             }
             break;
     }
@@ -232,10 +232,10 @@ std::tuple<size_t, size_t, int, int> get_partitionedEntity(const std::string &li
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // Get nodes from block system (GMSG format 4.1)
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodesBlocks, const size_t &numNodes) 
+MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodesBlocks, const size_t &numNodes, const size_t Dim) 
 {
     // Allocate output
-    MArray<double,2> V({numNodes,3},0); // [x(:),y(:),z(:)]
+    MArray<double,2> V({numNodes,Dim},0); // [x(:),y(:),z(:)]
 
     // Node counter
     size_t n=0;
@@ -270,7 +270,8 @@ MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodesBlock
         {
             std::getline(buffer, line);
             std::stringstream stream(line);
-            stream >> V(n,0) >> V(n,1) >> V(n,2);
+            if (Dim==2) {stream >> V(n,0) >> V(n,1);}
+            if (Dim==3) {stream >> V(n,0) >> V(n,1) >> V(n,2);}
             n = n+1; // Update node counter
         }
         // Delete temporary new-arrays
@@ -282,10 +283,10 @@ MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodesBlock
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // Get nodes from block system (GMSH format 2.2)
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodes) 
+MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodes, const size_t Dim) 
 {
     // Allocate output
-    MArray<double,2> V({numNodes,3},0); // [x(:),y(:),z(:)]
+    MArray<double,2> V({numNodes,Dim},0); // [x(:),y(:),z(:)]
 
     // Node counter
     size_t nodeTag;
@@ -298,7 +299,8 @@ MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodes)
     {
         std::getline(buffer, line);
         std::stringstream stream(line);
-        stream >> nodeTag >> V(i,0) >> V(i,1) >> V(i,2);
+        if (Dim==2) {stream >> nodeTag >> V(i,0) >> V(i,1);}
+        if (Dim==3) {stream >> nodeTag >> V(i,0) >> V(i,1) >> V(i,2);}
     }
     return V;
 }

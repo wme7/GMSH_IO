@@ -329,7 +329,7 @@ int GMSHparserV4(std::string mesh_file)
         if(DEBUG) std::cout << " maxNodeIndex: "   << maxNodeIndex-one << std::endl;
 
         //V = get_nodes(buffer_N,runNodesBlocks,numNodes);
-        MArray<double,2> V = get_nodes(Nodes,numNodesBlocks,numNodes);
+        MArray<double,2> V = get_nodes(Nodes,numNodesBlocks,numNodes,phys_DIM); //V.print();
 
         // Report the number for nodes found
         std::cout << "Total vertices found = " << numNodes << std::endl;
@@ -470,12 +470,19 @@ int GMSHparserV4(std::string mesh_file)
         MArray<size_t,2> SEToV({ numE2,3},SE.EToV); //SEToV.print();
         MArray<size_t,2> VEToV({ numE4,4},VE.EToV); //VEToV.print();
 
+        std::cout << "LE.phys_tag\n" << std::endl;
+        std::copy(LE.phys_tag.begin(), LE.phys_tag.end(), std::ostream_iterator<int>(std::cout,"\n"));
+        std::cout << "LE.geom_tag\n" << std::endl;
+        std::copy(LE.geom_tag.begin(), LE.geom_tag.end(), std::ostream_iterator<int>(std::cout,"\n"));
+        std::cout << "LE.part_tag\n" << std::endl;
+        std::copy(LE.part_tag.begin(), LE.part_tag.end(), std::ostream_iterator<int>(std::cout,"\n"));
+
         // Save to Numpy Array
-        cnpy::npz_save("../../Python3/FEMmeshV4.npy",  "V"  , V.data(), {numNodes,3},"w");
-        cnpy::npz_save("../../Python3/FEMmeshV4.npy","PEToV",PEToV.data(),{numE15,1},"a");
-        cnpy::npz_save("../../Python3/FEMmeshV4.npy","LEToV",LEToV.data(),{numE1, 2},"a");
-        cnpy::npz_save("../../Python3/FEMmeshV4.npy","SEToV",SEToV.data(),{numE2, 3},"a");
-        cnpy::npz_save("../../Python3/FEMmeshV4.npy","VEToV",VEToV.data(),{numE4, 4},"a");
+        cnpy::npz_save("../../Python3/FEMmeshV4.npz","V",V.data(),{numNodes,phys_DIM},"w");
+        cnpy::npz_save("../../Python3/FEMmeshV4.npz","PEToV",PEToV.data(),{numE15,1},"a");
+        cnpy::npz_save("../../Python3/FEMmeshV4.npz","LEToV",LEToV.data(),{numE1, 2},"a");
+        cnpy::npz_save("../../Python3/FEMmeshV4.npz","SEToV",SEToV.data(),{numE2, 3},"a");
+        cnpy::npz_save("../../Python3/FEMmeshV4.npz","VEToV",VEToV.data(),{numE4, 4},"a");
         
     } else {
         std::cout << "ERROR: Could not open file: " << mesh_file << std::endl; 
