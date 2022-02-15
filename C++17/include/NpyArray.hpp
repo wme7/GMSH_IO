@@ -263,6 +263,8 @@ namespace cnpy {
         err = inflate(&d_stream, Z_FINISH);
         err = inflateEnd(&d_stream);
 
+        if (err!=0) std::cout << "Zlib: Ups something went rogue!" << std::endl;
+
         std::vector<size_t> shape;
         size_t word_size;
         bool fortran_order;

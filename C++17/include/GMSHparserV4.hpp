@@ -1,261 +1,65 @@
 #ifndef GMSH_PARSER_V4
 #define GMSH_PARSER_V4
 
-#include <algorithm>
-#include <iostream>
-#include <iterator>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <tuple>
-#include <map>
-
 // local libs
-#include "MdimArray.hpp"
-#include "NpyArray.hpp"
-
-// Get a sub-string from the main string-buffer using two unique delimiters:
-std::string extractBetween(
-    const std::string &buffer,
-    const std::string &start_delimiter,
-    const std::string &stop_delimiter)
-{
-    unsigned first_delim_pos = buffer.find(start_delimiter);
-    unsigned end_pos_of_first_delim = first_delim_pos + start_delimiter.length();
-    unsigned last_delim_pos = buffer.find(stop_delimiter);
-
-    return buffer.substr(end_pos_of_first_delim,
-        last_delim_pos - end_pos_of_first_delim);
-}
-
-// Build convention map of Boundary conditions for ParadigmS:
-std::map<std::string,int> get_BC_type()
-{
-    std::map<std::string,int> BC_type;
-
-    // Initialize map of BCs
-    BC_type["BCfile"]=0;
-    BC_type["free"]=1;
-    BC_type["wall"]=2;
-    BC_type["outflow"]=3;
-    BC_type["imposedPressure"]=4;
-    BC_type["imposedVelocities"]=5;
-    BC_type["axisymmetric_y"]=6;
-    BC_type["axisymmetric_x"]=7;
-    BC_type["BC_rec"]=10;
-    BC_type["free_rec"]=11;
-    BC_type["wall_rec"]=12;
-    BC_type["outflow_rec"]=13;
-    BC_type["imposedPressure_rec"]=14;
-    BC_type["imposedVelocities_rec"]=15;
-    BC_type["axisymmetric_y_rec"]=16;
-    BC_type["axisymmetric_x_rec"]=17;
-    BC_type["piston_pressure"]=18;
-    BC_type["piston_velocity"]=19;
-    BC_type["recordingObject"]=20;
-    BC_type["recObj"]=20;
-    BC_type["piston_stress"]=21;
-
-    return BC_type;
-}
-
-// Element structure to be acquired:
-struct element
-{
-    std::vector<size_t> EToV;
-    std::vector<int> phys_tag;
-    std::vector<int> geom_tag;
-    std::vector<int> part_tag;
-    std::vector<int> Etype;
-};
-
-// Split and input strings and return a vector with all double values
-std::vector<double> str2double(const std::string &str)
-{
-    std::stringstream ss(str);
-    std::istream_iterator<double> begin(ss);
-    std::istream_iterator<double> end;
-    std::vector<double> values(begin,end);
-    return values;
-}
-
-// Split and input strings and return a vector with all size_t values
-std::vector<size_t> str2size_t(const std::string &str)
-{
-    std::stringstream ss(str);
-    std::istream_iterator<size_t> begin(ss);
-    std::istream_iterator<size_t> end;
-    std::vector<size_t> values(begin,end);
-    return values;
-}
-
-// Get entity Tag and its associated physical Tag.
-std::tuple<size_t, int> get_entity(const std::string &line, const size_t &Idx)
-{
-    size_t entityTag;
-    size_t numPhysicalTags; 
-    int physicalTag;
-
-    // get line data
-    auto vector = str2double(line);
-
-    switch (Idx) {
-        case 1: // case for nodes
-            // 1. get entityTag
-            entityTag = int(vector[0]);
-
-            // 2. get entity coordiantes // not needed
-            // ignore indexes 1, 2, 3
-
-            // 3. get physical tag associated
-            numPhysicalTags = int(vector[4]);
-            if (numPhysicalTags==0) {
-                physicalTag = -1; // set a negative tag!
-            } else {
-                physicalTag = int(vector[5]);
-            }
-            break;
-        default: // otherwise
-            // 1. get entityTag
-            entityTag = int(vector[0]);
-
-            // 2. get entity coordiantes // not needed
-            // ignore indexes 1, 2, 3, 4, 5, 6
-
-            // 3. get physical tag associated
-            numPhysicalTags = int(vector[7]);
-            if (numPhysicalTags==0) {
-                physicalTag = -1; // set a negative tag!
-            } else {
-                physicalTag = int(vector[8]);
-            }
-            // 4. get tags of subentities. // not needed
-            break;
-    }
-    return {entityTag, physicalTag};
-}
-
-// Get partitioned entity Tags and its associated physical Tag.
-std::tuple<size_t, size_t, int, int> get_partitionedEntity(const std::string &line, const size_t &Idx)
-{
-    size_t entityTag, parentTag; 
-    size_t numPhysicalTags, numPartitionsTags; 
-    int partitionTag, physicalTag;
-
-    // get line data
-    auto vector = str2double(line);
-
-    switch (Idx) {
-        case 1: // case for nodes
-            // 1. get entityTag
-            entityTag = int(vector[0]);
-
-            // 2. get parent dimension and tag
-            //parentDim = int(vector[1]); // not needed
-            parentTag = int(vector[2]);
-
-            // 3. get partitions tags
-            numPartitionsTags = int(vector[3]);
-            if (numPartitionsTags > 1) { // --> mark it as an interface element!
-                partitionTag = -1;
-            } else {
-                partitionTag = int(vector[4]);
-            }
-
-            // 4. get entity coordiantes // not needed
-            // ignore indexes 5, 6, 7
-
-            // 5. get physical tag associated
-            numPhysicalTags = int(vector[7+numPartitionsTags]);
-            if (numPhysicalTags==0) {
-                physicalTag = -1; // set a negative tag!
-            } else {
-                physicalTag = int(vector[8+numPartitionsTags]);
-            }
-            break;
-        default: //otherwise
-            // 1. get entityTag
-            entityTag = int(vector[0]);
-
-            // 2. get parent dimension and tag
-            //parentDim = int(vector[1]); // not needed
-            parentTag = int(vector[2]);
-
-            // 3. get partitions tags
-            numPartitionsTags = int(vector[3]);
-            if (numPartitionsTags > 1) { // --> mark it as an interface element!
-                partitionTag = -1; // set a negative tag!
-            } else {
-                partitionTag = int(vector[4]);
-            }
-
-            // 4. get entity coordiantes // not needed
-            // ignore indexes 5, 6, 7, 8, 9, 10
-
-            // 5. get physical tag associated
-            numPhysicalTags = int(vector[10+numPartitionsTags]);
-            if (numPhysicalTags==0) {
-                physicalTag = -1;
-            } else {
-                physicalTag = int(vector[12+numPartitionsTags]);
-            }
-            break;
-    }
-    return {entityTag, parentTag, partitionTag, physicalTag};
-}
-
-// Get nodes from block system
-MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodesBlocks, const size_t &numNodes) 
-{
-    // Allocate output
-    MArray<double,2> V({numNodes,3},0); // [x(:),y(:),z(:)]
-
-    // Node counter
-    size_t n=0;
-
-    std::stringstream buffer(Nodes);
-    std::string line; 
-    std::getline(buffer, line); // l = 1;
-    // Read nodes blocks:  (this can be done in parallel!)
-    for (size_t i=0; i<numNodesBlocks; i++)
-    {
-        // update line counter, l = l+1;
-        std::getline(buffer, line);
-        std::stringstream hearder(line);
-
-        // Read Block parameters
-        size_t entityDim;  // not needed
-        size_t entityTag;  // not needed
-        size_t parametric; // not needed
-        size_t numNodesInBlock;
-        hearder >> entityDim >> entityTag >> parametric >> numNodesInBlock;
-
-        // Read Nodes IDs
-        size_t *nodeTag = new size_t[numNodesInBlock]; // nodeTag
-        for (size_t i=0; i<numNodesInBlock; i++)
-        {
-            std::getline(buffer, line);
-            std::stringstream stream(line);
-            stream >> nodeTag[i];
-        }
-        // Read Nodes Coordinates
-        for (size_t i=0; i<numNodesInBlock; i++)
-        {
-            std::getline(buffer, line);
-            std::stringstream stream(line);
-            stream >> V(n,0) >> V(n,1) >> V(n,2);
-            n = n+1; // Update node counter
-        }
-        // Delete temporary new-arrays
-        delete [] nodeTag;
-    }
-    return V;
-}
-
+#include "Globals.hpp"
+#include "GMSHparserTools.hpp"
 
 int GMSHparserV4(std::string mesh_file) 
 {
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    //
+    //     Extract entities contained in a single GMSH-file in format v4.1 
+    //
+    //      Coded by Manuel A. Diaz @ Pprime | Univ-Poitiers, 2022.01.21
+    //
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    //
+    // Example call: GMSHparserV4('filename.msh')
+    //
+    // Output:
+    //     V: the vertices (nodes coordinates) -- (Nx3) array
+    //    VE: volumetric elements (tetrahedrons) -- structure
+    //    SE: surface elements (triangles,quads) -- structure
+    //    LE: curvilinear elements (lines/edges) -- structure
+    //    PE: point elements (singular vertices) -- structure
+    //    mapPhysNames: maps phys.tag --> phys.name  -- map structure
+    //    info: version, format, endian test -- structure
+    //
+    // Note: This parser is designed to capture the following elements:
+    //
+    // Point:                Line:                   Triangle:
+    //
+    //        v                                              v
+    //        ^                                              ^
+    //        |                       v                      |
+    //        +----> u                ^                      2
+    //       0                        |                      |`\.
+    //                                |                      |  `\.
+    //                          0-----+-----1 --> u          |    `\.
+    //                                                       |      `\.
+    // Tetrahedron:                                          |        `\.
+    //                                                       0----------1 --> u
+    //                    v
+    //                   ,
+    //                  /
+    //               2
+    //             ,/|`\                    Based on the GMSH guide 4.9.4
+    //           ,/  |  `\                  This are lower-order elements 
+    //         ,/    '.   `\                identified as:
+    //       ,/       |     `\                  E-1 : 2-node Line 
+    //     ,/         |       `\                E-2 : 3-node Triangle
+    //    0-----------'.--------1 --> u         E-4 : 4-node tetrahedron
+    //     `\.         |      ,/                E-15: 1-node point
+    //        `\.      |    ,/
+    //           `\.   '. ,/                Other elements can be added to 
+    //              `\. |/                  this parser by modifying the 
+    //                 `3                   Read Elements stage.
+    //                    `\.
+    //                       ` w            Happy coding ! M.D. 02/2022.
+    //
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
     //-------------------------------------
     // - Global Parameters of the parser -
     //-------------------------------------
@@ -558,10 +362,10 @@ int GMSHparserV4(std::string mesh_file)
         element VE; // volume elements
 
         // Element counters
-        size_t e1 = 0; // Lines Element counter
-        size_t e2 = 0; // Triangle Element counter
-        size_t e4 = 0; // Tetrahedron Element counter
-        size_t e15= 0; // Point Element counter
+        size_t numE1 = 0; // Lines Element counter
+        size_t numE2 = 0; // Triangle Element counter
+        size_t numE4 = 0; // Tetrahedron Element counter
+        size_t numE15= 0; // Point Element counter
         
         // Read elements block
         for (size_t Ent=0; Ent<numEntBlocks; Ent++)
@@ -584,7 +388,7 @@ int GMSHparserV4(std::string mesh_file)
                 switch (elementType) // <-- Should use entityDim, but we only search 4 type of elements
                 {
                 case 1: /* Line elements */
-                    e1 = e1 + 1; // update element counter
+                    numE1 = numE1 + 1; // update element counter
                     LE.Etype.push_back(elementType);
                     LE.EToV.push_back(line_data[1]-one);
                     LE.EToV.push_back(line_data[2]-one);
@@ -597,7 +401,7 @@ int GMSHparserV4(std::string mesh_file)
                     }
                     break;
                 case 2: /* triangle elements */
-                    e2 = e2 + 1; // update element counter
+                    numE2 = numE2 + 1; // update element counter
                     SE.Etype.push_back(elementType);
                     SE.EToV.push_back(line_data[1]-one);
                     SE.EToV.push_back(line_data[2]-one);
@@ -611,7 +415,7 @@ int GMSHparserV4(std::string mesh_file)
                     }
                     break;
                 case 4: /* tetrahedron elements */
-                    e4 = e4 + 1; // update element counter
+                    numE4 = numE4 + 1; // update element counter
                     VE.Etype.push_back(elementType);
                     VE.EToV.push_back(line_data[1]-one);
                     VE.EToV.push_back(line_data[2]-one);
@@ -626,7 +430,7 @@ int GMSHparserV4(std::string mesh_file)
                     }
                     break;
                 case 15: /* point elements */
-                    e15 = e15 + 1; // update element counter
+                    numE15 = numE15 + 1; // update element counter
                     PE.Etype.push_back(elementType);
                     PE.EToV.push_back(line_data[1]-one);
                     PE.phys_tag.push_back(point2phys[entityTag]);
@@ -644,12 +448,12 @@ int GMSHparserV4(std::string mesh_file)
                 }
             }
         }
-        std::cout << "Total point-elements found = " << e15 << std::endl;
-        std::cout << "Total curve-elements found = " << e1 << std::endl;
-        std::cout << "Total surface-elements found = " << e2 << std::endl;   
-        std::cout << "Total volume-elements found = " << e4 << std::endl;
+        std::cout << "Total point-elements found = " << numE15 << std::endl;
+        std::cout << "Total curve-elements found = " << numE1 << std::endl;
+        std::cout << "Total surface-elements found = " << numE2 << std::endl;   
+        std::cout << "Total volume-elements found = " << numE4 << std::endl;
         // Sanity check
-        if (numElements != (e15+e1+e2+e4)) {
+        if (numElements != (numE15+numE1+numE2+numE4)) {
             std::cout << "Total number of elements missmatch!"<< std::endl;
             std::exit(-1);
         }
@@ -657,24 +461,21 @@ int GMSHparserV4(std::string mesh_file)
         buffer_E.str(std::string());
 
         /**************************/
-        // 7. Save parsed arrays
-        /**************************/
-
-        // Save to Numpy Array
-        //cnpy::npy_save("FEMmesh.npy",&PE.EToV[0],{e15,1},"w");
-        //cnpy::npy_save("FEMmesh.npy",&LE.EToV[0],{ e1,2},"a");
-        //cnpy::npy_save("FEMmesh.npy",&SE.EToV[0],{ e2,3},"a");
-        //cnpy::npy_save("FEMmesh.npy",&VE.EToV[0],{ e4,4},"a");
-
-        /**************************/
-        // 8. Print parsed arrays
+        // 7. Parse FEM data
         /**************************/
 
         // Save to MdimArrays
-        MArray<size_t,2> PEToV({e15,1},PE.EToV); PEToV.print();
-        MArray<size_t,2> LEToV({ e1,2},LE.EToV); LEToV.print();
-        MArray<size_t,2> SEToV({ e2,3},SE.EToV); SEToV.print();
-        MArray<size_t,2> VEToV({ e4,4},VE.EToV); VEToV.print();
+        MArray<size_t,2> PEToV({numE15,1},PE.EToV); //PEToV.print();
+        MArray<size_t,2> LEToV({ numE1,2},LE.EToV); //LEToV.print();
+        MArray<size_t,2> SEToV({ numE2,3},SE.EToV); //SEToV.print();
+        MArray<size_t,2> VEToV({ numE4,4},VE.EToV); //VEToV.print();
+
+        // Save to Numpy Array
+        cnpy::npz_save("../../Python3/FEMmeshV4.npy",  "V"  , V.data(), {numNodes,3},"w");
+        cnpy::npz_save("../../Python3/FEMmeshV4.npy","PEToV",PEToV.data(),{numE15,1},"a");
+        cnpy::npz_save("../../Python3/FEMmeshV4.npy","LEToV",LEToV.data(),{numE1, 2},"a");
+        cnpy::npz_save("../../Python3/FEMmeshV4.npy","SEToV",SEToV.data(),{numE2, 3},"a");
+        cnpy::npz_save("../../Python3/FEMmeshV4.npy","VEToV",VEToV.data(),{numE4, 4},"a");
         
     } else {
         std::cout << "ERROR: Could not open file: " << mesh_file << std::endl; 
@@ -683,5 +484,4 @@ int GMSHparserV4(std::string mesh_file)
     // If everything goes well ...
     return 0;
 }
-
 #endif

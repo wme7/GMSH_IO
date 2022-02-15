@@ -1,128 +1,71 @@
 #ifndef GMSH_PARSER_V2
 #define GMSH_PARSER_V2
 
-#include <algorithm>
-#include <iostream>
-#include <iterator>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <tuple>
-#include <map>
-
 // local libs
-#include "MdimArray.hpp"
-#include "NpyArray.hpp"
-
-// Get a sub-string from the main string-buffer using two unique delimiters:
-std::string extractBetween(
-    const std::string &buffer,
-    const std::string &start_delimiter,
-    const std::string &stop_delimiter)
-{
-    unsigned first_delim_pos = buffer.find(start_delimiter);
-    unsigned end_pos_of_first_delim = first_delim_pos + start_delimiter.length();
-    unsigned last_delim_pos = buffer.find(stop_delimiter);
-
-    return buffer.substr(end_pos_of_first_delim,
-        last_delim_pos - end_pos_of_first_delim);
-}
-
-// Build convention map of Boundary conditions for ParadigmS:
-std::map<std::string,int> get_BC_type()
-{
-    std::map<std::string,int> BC_type;
-
-    // Initialize map of BCs
-    BC_type["BCfile"]=0;
-    BC_type["free"]=1;
-    BC_type["wall"]=2;
-    BC_type["outflow"]=3;
-    BC_type["imposedPressure"]=4;
-    BC_type["imposedVelocities"]=5;
-    BC_type["axisymmetric_y"]=6;
-    BC_type["axisymmetric_x"]=7;
-    BC_type["BC_rec"]=10;
-    BC_type["free_rec"]=11;
-    BC_type["wall_rec"]=12;
-    BC_type["outflow_rec"]=13;
-    BC_type["imposedPressure_rec"]=14;
-    BC_type["imposedVelocities_rec"]=15;
-    BC_type["axisymmetric_y_rec"]=16;
-    BC_type["axisymmetric_x_rec"]=17;
-    BC_type["piston_pressure"]=18;
-    BC_type["piston_velocity"]=19;
-    BC_type["recordingObject"]=20;
-    BC_type["recObj"]=20;
-    BC_type["piston_stress"]=21;
-
-    return BC_type;
-}
-
-// Element structure to be acquired:
-struct element
-{
-    std::vector<size_t> EToV;
-    std::vector<int> phys_tag;
-    std::vector<int> geom_tag;
-    std::vector<int> part_tag;
-    std::vector<int> Etype;
-};
-
-// Split and input strings and return a vector with all double values
-std::vector<double> str2double(const std::string &str)
-{
-    std::stringstream ss(str);
-    std::istream_iterator<double> begin(ss);
-    std::istream_iterator<double> end;
-    std::vector<double> values(begin,end);
-    return values;
-}
-
-// Split and input strings and return a vector with all size_t values
-std::vector<size_t> str2size_t(const std::string &str)
-{
-    std::stringstream ss(str);
-    std::istream_iterator<size_t> begin(ss);
-    std::istream_iterator<size_t> end;
-    std::vector<size_t> values(begin,end);
-    return values;
-}
-
-// Get nodes from block system
-MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodes) 
-{
-    // Allocate output
-    MArray<double,2> V({numNodes,3},0); // [x(:),y(:),z(:)]
-
-    // Node counter
-    size_t nodeTag;
-
-    std::stringstream buffer(Nodes);
-    std::string line; 
-    std::getline(buffer, line); // l = 1;
-    // Read nodes blocks:  
-    for (size_t i=0; i<numNodes; i++)
-    {
-        std::getline(buffer, line);
-        std::stringstream stream(line);
-        stream >> nodeTag >> V(i,0) >> V(i,1) >> V(i,2);
-    }
-    return V;
-}
+#include "Globals.hpp"
+#include "GMSHparserTools.hpp"
 
 int GMSHparserV2(std::string mesh_file) 
 {
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    //
+    //     Extract entities contained in a single GMSH-file in format v2.2 
+    //
+    //      Coded by Manuel A. Diaz @ Pprime | Univ-Poitiers, 2022.01.21
+    //
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    //
+    // Example call: GMSHparserV2('filename.msh')
+    //
+    // Output:
+    //     V: the vertices (nodes coordinates) -- (Nx3) array
+    //    VE: volumetric elements (tetrahedrons) -- structure
+    //    SE: surface elements (triangles,quads) -- structure
+    //    LE: curvilinear elements (lines/edges) -- structure
+    //    PE: point elements (singular vertices) -- structure
+    //    mapPhysNames: maps phys.tag --> phys.name  -- map structure
+    //    info: version, format, endian test -- structure
+    //
+    // Note: This parser is designed to capture the following elements:
+    //
+    // Point:                Line:                   Triangle:
+    //
+    //        v                                              v
+    //        ^                                              ^
+    //        |                       v                      |
+    //        +----> u                ^                      2
+    //       0                        |                      |`\.
+    //                                |                      |  `\.
+    //                          0-----+-----1 --> u          |    `\.
+    //                                                       |      `\.
+    // Tetrahedron:                                          |        `\.
+    //                                                       0----------1 --> u
+    //                    v
+    //                   ,
+    //                  /
+    //               2
+    //             ,/|`\                    Based on the GMSH guide 4.9.4
+    //           ,/  |  `\                  This are lower-order elements 
+    //         ,/    '.   `\                identified as:
+    //       ,/       |     `\                  E-1 : 2-node Line 
+    //     ,/         |       `\                E-2 : 3-node Triangle
+    //    0-----------'.--------1 --> u         E-4 : 4-node tetrahedron
+    //     `\.         |      ,/                E-15: 1-node point
+    //        `\.      |    ,/
+    //           `\.   '. ,/                Other elements can be added to 
+    //              `\. |/                  this parser by modifying the 
+    //                 `3                   Read Elements stage.
+    //                    `\.
+    //                       ` w            Happy coding ! M.D. 02/2022.
+    //
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
     //-------------------------------------
     // - Global Parameters of the parser -
     //-------------------------------------
 
     // Nominal dimension of the meshed geometry
     size_t phys_DIM = 0; // initial guess
-
-    // Is the mesh a single partition?
-    bool single_domain = true; // Initial guess
 
     // Index correction factor
     size_t one = 0; // if we set one=0, one recovers the original indexes of GMSH.
@@ -153,21 +96,14 @@ int GMSHparserV2(std::string mesh_file)
         // Initialized sub-buffers
         std::string MeshFormat    = extractBetween(buffer.str(),"$MeshFormat\n","\n$EndMeshFormat");
         std::string PhysicalNames = extractBetween(buffer.str(),"$PhysicalNames\n","\n$EndPhysicalNames");
-        std::string Entities      = extractBetween(buffer.str(),"$Entities\n","\n$EndEntities");
-        std::string PartEntities  = extractBetween(buffer.str(),"$PartitionedEntities\n","\n$EndPartitionedEntities");
         std::string Nodes         = extractBetween(buffer.str(),"$Nodes\n","\n$EndNodes");
         std::string Elements      = extractBetween(buffer.str(),"$Elements\n","\n$EndElements");
 
         // Sanity check
         if (  MeshFormat.empty() ) {std::cout << " Error - Wrong File Format!" << std::endl; std::exit(-1);}
         if (PhysicalNames.empty()) {std::cout << " Error - No Physical names!" << std::endl; std::exit(-1);}
-        if (   Entities.empty()  ) {std::cout << " Error - No Entities found!" << std::endl; std::exit(-1);}
         if (    Nodes.empty()    ) {std::cout << " Error - Nodes are missing!" << std::endl; std::exit(-1);}
         if (   Elements.empty()  ) {std::cout << " Error - No Elements found!" << std::endl; std::exit(-1);}
-
-        // Is it a single or partitioned domain?
-        if ( PartEntities.empty()) {single_domain = true;} else {single_domain = false;}
-        if(DEBUG) std::cout << "Partitioned domain detected" << std::endl;
 
         // For reading the buffer line by line
         std::string line;
@@ -270,23 +206,124 @@ int GMSHparserV2(std::string mesh_file)
         element VE; // volume elements
 
         // Element counters
-        size_t e1 = 0; // Lines Element counter
-        size_t e2 = 0; // Triangle Element counter
-        size_t e4 = 0; // Tetrahedron Element counter
-        size_t e15= 0; // Point Element counter
+        size_t numE1 = 0; // Lines Element counter
+        size_t numE2 = 0; // Triangle Element counter
+        size_t numE4 = 0; // Tetrahedron Element counter
+        size_t numE15= 0; // Point Element counter
 
         // Read elements serially
         for (size_t i=0; i<numElements; i++) 
         {
             // Read Block parameters
             std::getline(buffer_E, line);
+            auto n = str2size_t(line);
+            //size_t elementID = n(0); % we use a local numbering instead
+            size_t elementType = n[1];
+            size_t numberOfTags = n[2];
+            switch (elementType)
+            {
+            case 1: // Line elements
+                numE1 = numE1 + 1; // update element counter
+                LE.Etype.push_back(elementType);
+                LE.EToV.push_back(n[2+numberOfTags+1]-one);
+                LE.EToV.push_back(n[2+numberOfTags+2]-one);
+                if (numberOfTags>0) {
+                    auto tags = extractVectorBetween(n,3,3+numberOfTags);
+                    // tags(1) : physical entity to which the element belongs
+                    // tags(2) : elementary number to which the element belongs
+                    // tags(3) : number of partitions to which the element belongs
+                    // tags(4) : partition id number
+                    if (tags.size()>=1) {
+                        LE.phys_tag.push_back(tags[1]);
+                        if (tags.size()>=2) {
+                            LE.geom_tag.push_back(tags[2]);
+                            if (tags.size()>=4) {
+                                LE.part_tag.push_back(tags[4]);
+                            }
+                        }
+                    }
+                }
+                break;
+            case 2: // Triangle elements
+                numE2 = numE2 + 1; // update element counter
+                SE.Etype.push_back(elementType);
+                SE.EToV.push_back(n[2+numberOfTags+1]-one);
+                SE.EToV.push_back(n[2+numberOfTags+2]-one);
+                SE.EToV.push_back(n[2+numberOfTags+3]-one);
+                if (numberOfTags>0) {
+                    auto tags = extractVectorBetween(n,3,3+numberOfTags);
+                    // tags(1) : physical entity to which the element belongs
+                    // tags(2) : elementary number to which the element belongs
+                    // tags(3) : number of partitions to which the element belongs
+                    // tags(4) : partition id number
+                    if (tags.size()>=1) {
+                        SE.phys_tag.push_back(tags[1]);
+                        if (tags.size()>=2) {
+                            SE.geom_tag.push_back(tags[2]);
+                            if (tags.size()>=4) {
+                                SE.part_tag.push_back(tags[4]);
+                            }
+                        }
+                    }
+                }
+                break;
+            case 4: // Tetrahedron elements
+                numE4 = numE4 + 1; // update element counter
+                VE.Etype.push_back(elementType);
+                VE.EToV.push_back(n[2+numberOfTags+1]-one);
+                VE.EToV.push_back(n[2+numberOfTags+2]-one);
+                VE.EToV.push_back(n[2+numberOfTags+3]-one);
+                VE.EToV.push_back(n[2+numberOfTags+4]-one);
+                if (numberOfTags>0) {
+                    auto tags = extractVectorBetween(n,3,3+numberOfTags);
+                    // tags(1) : physical entity to which the element belongs
+                    // tags(2) : elementary number to which the element belongs
+                    // tags(3) : number of partitions to which the element belongs
+                    // tags(4) : partition id number
+                    if (tags.size()>=1) {
+                        VE.phys_tag.push_back(tags[1]);
+                        if (tags.size()>=2) {
+                            VE.geom_tag.push_back(tags[2]);
+                            if (tags.size()>=4) {
+                                VE.part_tag.push_back(tags[4]);
+                            }
+                        }
+                    }
+                }
+                break;
+            case 15: // Point elements
+                numE15 = numE15 + 1; // update element counter
+                PE.Etype.push_back(elementType);
+                PE.EToV.push_back(n[2+numberOfTags+1]-one);
+                if (numberOfTags>0) {
+                    auto tags = extractVectorBetween(n,3,3+numberOfTags);
+                    // tags(1) : physical entity to which the element belongs
+                    // tags(2) : elementary number to which the element belongs
+                    // tags(3) : number of partitions to which the element belongs
+                    // tags(4) : partition id number
+                    if (tags.size()>=1) {
+                        PE.phys_tag.push_back(tags[1]);
+                        if (tags.size()>=2) {
+                            PE.geom_tag.push_back(tags[2]);
+                            if (tags.size()>=4) {
+                                PE.part_tag.push_back(tags[4]);
+                            }
+                        }
+                    }
+                }
+                break;
+            default:
+                std::cout << "ERROR: element type not in list"<< std::endl;
+                std::exit(-1);
+                break;
+            }
         }
-        std::cout << "Total point-elements found = " << e15 << std::endl;
-        std::cout << "Total curve-elements found = " << e1 << std::endl;
-        std::cout << "Total surface-elements found = " << e2 << std::endl;   
-        std::cout << "Total volume-elements found = " << e4 << std::endl;
+        std::cout << "Total point-elements found = " << numE15 << std::endl;
+        std::cout << "Total curve-elements found = " << numE1 << std::endl;
+        std::cout << "Total surface-elements found = " << numE2 << std::endl;   
+        std::cout << "Total volume-elements found = " << numE4 << std::endl;
         // Sanity check
-        if (numElements != (e15+e1+e2+e4)) {
+        if (numElements != (numE15+numE1+numE2+numE4)) {
             std::cout << "Total number of elements missmatch!"<< std::endl;
             std::exit(-1);
         }
@@ -294,24 +331,23 @@ int GMSHparserV2(std::string mesh_file)
         buffer_E.str(std::string());
 
         /**************************/
-        // 5. Save parsed arrays
-        /**************************/
-
-        // Save to Numpy Array
-        //cnpy::npy_save("FEMmesh.npy",&PE.EToV[0],{e15,1},"w");
-        //cnpy::npy_save("FEMmesh.npy",&LE.EToV[0],{ e1,2},"a");
-        //cnpy::npy_save("FEMmesh.npy",&SE.EToV[0],{ e2,3},"a");
-        //cnpy::npy_save("FEMmesh.npy",&VE.EToV[0],{ e4,4},"a");
-
-        /**************************/
-        // 6. Print parsed arrays
+        // 5. Parse FEM data
         /**************************/
 
         // Save to MdimArrays
-        // MArray<size_t,2> PEToV({e15,1},PE.EToV); PEToV.print();
-        // MArray<size_t,2> LEToV({ e1,2},LE.EToV); LEToV.print();
-        // MArray<size_t,2> SEToV({ e2,3},SE.EToV); SEToV.print();
-        // MArray<size_t,2> VEToV({ e4,4},VE.EToV); VEToV.print();
+        MArray<size_t,2> PEToV({numE15,1},PE.EToV); //PEToV.print();
+        MArray<size_t,2> LEToV({ numE1,2},LE.EToV); //LEToV.print();
+        MArray<size_t,2> SEToV({ numE2,3},SE.EToV); //SEToV.print();
+        MArray<size_t,2> VEToV({ numE4,4},VE.EToV); //VEToV.print();
+
+        std::cout << LE.EToV.size() << " vs " << numE1*2 << std::endl;
+
+        // Save to Numpy Array
+        cnpy::npz_save("../../Python3/FEMmeshV2.npz",  "V"  , V.data(), {numNodes,3},"w");
+        cnpy::npz_save("../../Python3/FEMmeshV2.npz","PEToV",PEToV.data(),{numE15,1},"a");
+        cnpy::npz_save("../../Python3/FEMmeshV2.npz","LEToV",LEToV.data(),{numE1, 2},"a");
+        cnpy::npz_save("../../Python3/FEMmeshV2.npz","SEToV",SEToV.data(),{numE2, 3},"a");
+        cnpy::npz_save("../../Python3/FEMmeshV2.npz","VEToV",VEToV.data(),{numE4, 4},"a");
 
     } else {
         std::cout << "ERROR: Could not open file: " << mesh_file << std::endl; 
@@ -320,5 +356,4 @@ int GMSHparserV2(std::string mesh_file)
     // If everything goes well ...
     return 0;
 }
-
 #endif

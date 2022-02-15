@@ -259,10 +259,10 @@ SE = struct('EToV',{[]},'phys_tag',{[]},'geom_tag',{[]},'Etype',{[]});
 VE = struct('EToV',{[]},'phys_tag',{[]},'geom_tag',{[]},'Etype',{[]});
 
 % Element counters
-e1 = 0; % Lines Element counter
-e2 = 0; % Triangle Element counter
-e4 = 0; % Tetrahedron Element counter
-e15 = 0; % point Element counter
+numE1 = 0; % Lines Element counter
+numE2 = 0; % Triangle Element counter
+numE4 = 0; % Tetrahedron Element counter
+numE15= 0; % point Element counter
 
 % Read elements blocks
 for ent = 1:numEntityBlocks
@@ -280,60 +280,60 @@ for ent = 1:numEntityBlocks
         %elementID = line_data(1); % we use a local numbering instead
         switch elementType % <-- Should use entittyDim, but we only search 4 type of elements
             case 1 % Line elements
-                e1 = e1 + 1; % update element counter
-                LE.Etype(e1,1) = elementType;
-                LE.EToV(e1,:) = line_data(2:3);
-                LE.phys_tag(e1,1) = curve2Phys(entityTag);
+                numE1 = numE1 + 1; % update element counter
+                LE.Etype(numE1,1) = elementType;
+                LE.EToV(numE1,:) = line_data(2:3);
+                LE.phys_tag(numE1,1) = curve2Phys(entityTag);
                 if not(single_domain)
-                    LE.geom_tag(e1,1) = curve2Geom(entityTag);
-                    LE.part_tag(e1,1) = curve2Part(entityTag);
+                    LE.geom_tag(numE1,1) = curve2Geom(entityTag);
+                    LE.part_tag(numE1,1) = curve2Part(entityTag);
                 else
-                    LE.geom_tag(e1,1) = entityTag;
+                    LE.geom_tag(numE1,1) = entityTag;
                 end
             case 2 % triangle elements
-                e2 = e2 + 1; % update element counter
-                SE.Etype(e2,1) = elementType;
-                SE.EToV(e2,:) = line_data(2:4);
-                SE.phys_tag(e2,1) = surf2Phys(entityTag);
+                numE2 = numE2 + 1; % update element counter
+                SE.Etype(numE2,1) = elementType;
+                SE.EToV(numE2,:) = line_data(2:4);
+                SE.phys_tag(numE2,1) = surf2Phys(entityTag);
                 if not(single_domain)
-                    SE.geom_tag(e2,1) = surf2Geom(entityTag);
-                    SE.part_tag(e2,1) = surf2Part(entityTag);
+                    SE.geom_tag(numE2,1) = surf2Geom(entityTag);
+                    SE.part_tag(numE2,1) = surf2Part(entityTag);
                 else
-                    SE.geom_tag(e2,1) = entityTag;
+                    SE.geom_tag(numE2,1) = entityTag;
                 end
             case 4 % tetrahedron elements
-                e4 = e4 + 1; % update element counter
-                VE.Etype(e4,1) = elementType;
-                VE.EToV(e4,:) = line_data(2:5);
-                VE.phys_tag(e4,1) = volm2Phys(entityTag);
+                numE4 = numE4 + 1; % update element counter
+                VE.Etype(numE4,1) = elementType;
+                VE.EToV(numE4,:) = line_data(2:5);
+                VE.phys_tag(numE4,1) = volm2Phys(entityTag);
                 if not(single_domain)
-                    VE.geom_tag(e4,1) = volm2Geom(entityTag);
-                    VE.part_tag(e4,1) = volm2Part(entityTag);
+                    VE.geom_tag(numE4,1) = volm2Geom(entityTag);
+                    VE.part_tag(numE4,1) = volm2Part(entityTag);
                 else 
-                    VE.geom_tag(e4,1) = entityTag;
+                    VE.geom_tag(numE4,1) = entityTag;
                 end
             case 15 % Point elements
-                e15 = e15 + 1; % update element counter
-                PE.Etype(e15,1) = elementType;
-                PE.EToV(e15,:) = line_data(2);
-                PE.phys_tag(e15,1) = point2Phys(entityTag);
+                numE15 = numE15 + 1; % update element counter
+                PE.Etype(numE15,1) = elementType;
+                PE.EToV(numE15,:) = line_data(2);
+                PE.phys_tag(numE15,1) = point2Phys(entityTag);
                 if not(single_domain)
-                    PE.geom_tag(e15,1) = point2Geom(entityTag);
-                    PE.part_tag(e15,1) = point2Part(entityTag);
+                    PE.geom_tag(numE15,1) = point2Geom(entityTag);
+                    PE.part_tag(numE15,1) = point2Part(entityTag);
                 else
-                    PE.geom_tag(e15,1) = entityTag;
+                    PE.geom_tag(numE15,1) = entityTag;
                 end
             otherwise, error('ERROR: element type not in list');
         end
     end
 end
 %
-fprintf('Total point-elements found = %d\n',e15);
-fprintf('Total line-elements found = %d\n',e1);
-fprintf('Total surface-elements found = %d\n',e2);
-fprintf('Total volume-elements found = %d\n',e4);
+fprintf('Total point-elements found = %d\n',numE15);
+fprintf('Total line-elements found = %d\n',numE1);
+fprintf('Total surface-elements found = %d\n',numE2);
+fprintf('Total volume-elements found = %d\n',numE4);
 % Sanity check
-if numElements ~= (e15+e1+e2+e4)
+if numElements ~= (numE15+numE1+numE2+numE4)
     error('Total number of elements missmatch!'); 
 end
 %

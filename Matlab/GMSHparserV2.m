@@ -144,10 +144,13 @@ LE.EToV=[]; LE.phys_tag=[]; LE.geom_tag=[]; LE.part_tag=[]; LE.Etype=[];
 SE.EToV=[]; SE.phys_tag=[]; SE.geom_tag=[]; SE.part_tag=[]; SE.Etype=[];
 VE.EToV=[]; VE.phys_tag=[]; VE.geom_tag=[]; VE.part_tag=[]; VE.Etype=[];
 
-e0 = 0; % point Element counter
-e1 = 0; % Lines Element counter
-e2 = 0; % Triangle Element counter
-e3 = 0; % Tetrehedron Element counter
+% Element counters
+numE1 = 0; % Lines Element counter
+numE2 = 0; % Triangle Element counter
+numE4 = 0; % Tetrehedron Element counter
+numE15= 0; % point Element counter
+
+% Read elements
 for i = 1:numElements
     n = sscanf(cells_E{1+i}, '%d')';
     %elementID = n(1); % we use a local numbering instead
@@ -155,9 +158,9 @@ for i = 1:numElements
     numberOfTags = n(3);
     switch elementType
         case 1 % Line elements
-            e1 = e1 + 1; % update element counter
-            LE.Etype(e1,1) = elementType;
-            LE.EToV(e1,:) = n(3+numberOfTags+1:end);
+            numE1 = numE1 + 1; % update element counter
+            LE.Etype(numE1,1) = elementType;
+            LE.EToV(numE1,:) = n(3+numberOfTags+1:end);
             if numberOfTags > 0 % get tags if they exist
                 tags = n(3+(1:numberOfTags)); % get tags
                 % tags(1) : physical entity to which the element belongs
@@ -165,19 +168,19 @@ for i = 1:numElements
                 % tags(3) : number of partitions to which the element belongs
                 % tags(4) : partition id number
                 if length(tags) >= 1
-                    LE.phys_tag(e1,1) = tags(1);
+                    LE.phys_tag(numE1,1) = tags(1);
                     if length(tags) >= 2
-                        LE.geom_tag(e1,1) = tags(2);
+                        LE.geom_tag(numE1,1) = tags(2);
                         if length(tags) >= 4
-                            LE.part_tag(e1,1) = tags(4);
+                            LE.part_tag(numE1,1) = tags(4);
                         end
                     end
                 end
             end
         case 2 % triangle elements
-            e2 = e2 + 1; % update element counter
-            SE.Etype(e2,1) = elementType;
-            SE.EToV(e2,:) = n(3+numberOfTags+1:end);
+            numE2 = numE2 + 1; % update element counter
+            SE.Etype(numE2,1) = elementType;
+            SE.EToV(numE2,:) = n(3+numberOfTags+1:end);
             if numberOfTags > 0 % get tags if they exist
                 tags = n(3+(1:numberOfTags)); % get tags
                 % tags(1) : physical entity to which the element belongs
@@ -185,19 +188,19 @@ for i = 1:numElements
                 % tags(3) : number of partitions to which the element belongs
                 % tags(4) : partition id number
                 if length(tags) >= 1
-                    SE.phys_tag(e2,1) = tags(1);
+                    SE.phys_tag(numE2,1) = tags(1);
                     if length(tags) >= 2
-                        SE.geom_tag(e2,1) = tags(2);
+                        SE.geom_tag(numE2,1) = tags(2);
                         if length(tags) >= 4
-                            SE.part_tag(e2,1) = tags(4);
+                            SE.part_tag(numE2,1) = tags(4);
                         end
                     end
                 end
             end
         case 4 % tetrahedron elements
-            e3 = e3 + 1; % update element counter
-            VE.Etype(e3,1) = elementType;
-            VE.EToV(e3,:) = n(3+numberOfTags+1:end);
+            numE4 = numE4 + 1; % update element counter
+            VE.Etype(numE4,1) = elementType;
+            VE.EToV(numE4,:) = n(3+numberOfTags+1:end);
             if numberOfTags > 0 % get tags if they exist
                 tags = n(3+(1:numberOfTags)); % get tags
                 % tags(1) : physical entity to which the element belongs
@@ -205,19 +208,19 @@ for i = 1:numElements
                 % tags(3) : number of partitions to which the element belongs
                 % tags(4) : partition id number
                 if length(tags) >= 1
-                    VE.phys_tag(e3,1) = tags(1);
+                    VE.phys_tag(numE4,1) = tags(1);
                     if length(tags) >= 2
-                        VE.geom_tag(e3,1) = tags(2);
+                        VE.geom_tag(numE4,1) = tags(2);
                         if length(tags) >= 4
-                            VE.part_tag(e3,1) = tags(4);
+                            VE.part_tag(numE4,1) = tags(4);
                         end
                     end
                 end
             end
         case 15 % point element
-            e0 = e0 + 1; % update element counter
-            PE.Etype(e0,1) = elementType;
-            PE.EToV(e0,:) = n(3+numberOfTags+1:end);
+            numE15 = numE15 + 1; % update element counter
+            PE.Etype(numE15,1) = elementType;
+            PE.EToV(numE15,:) = n(3+numberOfTags+1:end);
             if numberOfTags > 0 % if they exist
                 tags = n(3+(1:numberOfTags)); % get tags
                 % tags(1) : physical entity to which the element belongs
@@ -225,11 +228,11 @@ for i = 1:numElements
                 % tags(3) : number of partitions to which the element belongs
                 % tags(4) : partition id number
                 if length(tags) >= 1
-                    PE.phys_tag(e0,1) = tags(1);
+                    PE.phys_tag(numE15,1) = tags(1);
                     if length(tags) >= 2
-                        PE.geom_tag(e0,1) = tags(2);
+                        PE.geom_tag(numE15,1) = tags(2);
                         if length(tags) >= 4
-                            PE.part_tag(e0,1) = tags(4);
+                            PE.part_tag(numE15,1) = tags(4);
                         end
                     end
                 end
@@ -241,12 +244,12 @@ end
 % Find the total number of partitions
 info.numPartitions = max(SE.part_tag);
 %
-fprintf('Total point-elements found = %g\n',e0);
-fprintf('Total line-elements found = %g\n',e1);
-fprintf('Total surface-elements found = %g\n',e2);
-fprintf('Total volume-elements found = %g\n',e3);
+fprintf('Total point-elements found = %g\n',numE15);
+fprintf('Total line-elements found = %g\n',numE1);
+fprintf('Total surface-elements found = %g\n',numE2);
+fprintf('Total volume-elements found = %g\n',numE4);
 % Sanity check
-if numElements ~= (e0+e1+e2+e3)
+if numElements ~= (numE15+numE1+numE2+numE4)
     error('Total number of elements missmatch!'); 
 end
 %
