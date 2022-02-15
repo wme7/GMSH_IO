@@ -481,11 +481,12 @@ function V = get_nodes(cells_N,numNodeBlocks,numNodes)
     end
 end
 
-function [FEtype,BEtype] = load_convention()
+function [DEtype,BEtype] = load_convention()
     % Define map of costum domain Elements types (Etype)
-    FEnames = {'fluid','fluid1','fluid2','fluid3','fluid4'};
-    FEsolverIds = [0,1,2,3,4]; % costume IDs expected in our solver
-    FEtype = containers.Map(FEnames,FEsolverIds);
+    DEnames = {'fluid','fluid1','fluid2','fluid3','fluid4',...
+               'solid','solid1','solid2','solid3','solid4'};
+    DEsolverIds = [0,1,2,3,4,5,6,7,8,9]; % costume IDs expected in our solver
+    DEtype = containers.Map(DEnames,DEsolverIds);
     
     % Define map of costum Boundary Elements types (BEtype)
     BCnames = { 'BCfile','free','wall','outflow',...

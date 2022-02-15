@@ -395,7 +395,7 @@ int GMSHparserV4(std::string mesh_file)
                     LE.phys_tag.push_back(curve2phys[entityTag]);
                     if (not(single_domain)) {
                         LE.geom_tag.push_back(curve2geom[entityTag]);
-                        LE.part_tag.push_back(curve2part[entityTag]);
+                        LE.part_tag.push_back(curve2part[entityTag]-one);
                     } else {
                         LE.geom_tag.push_back(entityTag);
                     }
@@ -409,7 +409,7 @@ int GMSHparserV4(std::string mesh_file)
                     SE.phys_tag.push_back(surf2phys[entityTag]);
                     if (not(single_domain)) {
                         SE.geom_tag.push_back(surf2geom[entityTag]);
-                        SE.part_tag.push_back(surf2part[entityTag]);
+                        SE.part_tag.push_back(surf2part[entityTag]-one);
                     } else {
                         SE.geom_tag.push_back(entityTag);
                     }
@@ -424,7 +424,7 @@ int GMSHparserV4(std::string mesh_file)
                     VE.phys_tag.push_back(volm2phys[entityTag]);
                     if (not(single_domain)) {
                         VE.geom_tag.push_back(volm2geom[entityTag]);
-                        VE.part_tag.push_back(volm2part[entityTag]);
+                        VE.part_tag.push_back(volm2part[entityTag]-one);
                     } else {
                         VE.geom_tag.push_back(entityTag);
                     }
@@ -436,7 +436,7 @@ int GMSHparserV4(std::string mesh_file)
                     PE.phys_tag.push_back(point2phys[entityTag]);
                     if (not(single_domain)) {
                         PE.geom_tag.push_back(point2geom[entityTag]);
-                        PE.part_tag.push_back(point2part[entityTag]);
+                        PE.part_tag.push_back(point2part[entityTag]-one);
                     } else {
                         PE.geom_tag.push_back(entityTag);
                     }
@@ -470,19 +470,36 @@ int GMSHparserV4(std::string mesh_file)
         MArray<size_t,2> SEToV({ numE2,3},SE.EToV); //SEToV.print();
         MArray<size_t,2> VEToV({ numE4,4},VE.EToV); //VEToV.print();
 
-        std::cout << "LE.phys_tag\n" << std::endl;
-        std::copy(LE.phys_tag.begin(), LE.phys_tag.end(), std::ostream_iterator<int>(std::cout,"\n"));
-        std::cout << "LE.geom_tag\n" << std::endl;
-        std::copy(LE.geom_tag.begin(), LE.geom_tag.end(), std::ostream_iterator<int>(std::cout,"\n"));
-        std::cout << "LE.part_tag\n" << std::endl;
-        std::copy(LE.part_tag.begin(), LE.part_tag.end(), std::ostream_iterator<int>(std::cout,"\n"));
-
         // Save to Numpy Array
-        cnpy::npz_save("../../Python3/FEMmeshV4.npz","V",V.data(),{numNodes,phys_DIM},"w");
-        cnpy::npz_save("../../Python3/FEMmeshV4.npz","PEToV",PEToV.data(),{numE15,1},"a");
-        cnpy::npz_save("../../Python3/FEMmeshV4.npz","LEToV",LEToV.data(),{numE1, 2},"a");
-        cnpy::npz_save("../../Python3/FEMmeshV4.npz","SEToV",SEToV.data(),{numE2, 3},"a");
-        cnpy::npz_save("../../Python3/FEMmeshV4.npz","VEToV",VEToV.data(),{numE4, 4},"a");
+        std::string filename = extractBetween(mesh_file,"meshes/",".msh");
+        filename = "../../Python3/" + filename + ".npz";
+        std::cout << "mesh data saved to: " << filename << std::endl;
+        
+        cnpy::npz_save(filename,"V",V.data(),{numNodes,phys_DIM},"w");
+        
+        cnpy::npz_save(filename,"PEToV",PEToV.data(),{numE15,1},"a");
+        cnpy::npz_save(filename,"PE_phys_tag",PE.phys_tag.data(),{numE15},"a");
+        cnpy::npz_save(filename,"PE_geom_tag",PE.geom_tag.data(),{numE15},"a");
+        cnpy::npz_save(filename,"PE_part_tag",PE.part_tag.data(),{numE15},"a");
+        cnpy::npz_save(filename,"PE_Etype",PE.Etype.data(),{numE15},"a");
+
+        cnpy::npz_save(filename,"LEToV",LEToV.data(),{numE1,2},"a");
+        cnpy::npz_save(filename,"LE_phys_tag",LE.phys_tag.data(),{numE1},"a");
+        cnpy::npz_save(filename,"LE_geom_tag",LE.geom_tag.data(),{numE1},"a");
+        cnpy::npz_save(filename,"LE_part_tag",LE.part_tag.data(),{numE1},"a");
+        cnpy::npz_save(filename,"LE_Etype",LE.Etype.data(),{numE1},"a");
+
+        cnpy::npz_save(filename,"SEToV",SEToV.data(),{numE2,3},"a");
+        cnpy::npz_save(filename,"SE_phys_tag",SE.phys_tag.data(),{numE2},"a");
+        cnpy::npz_save(filename,"SE_geom_tag",SE.geom_tag.data(),{numE2},"a");
+        cnpy::npz_save(filename,"SE_part_tag",SE.part_tag.data(),{numE2},"a");
+        cnpy::npz_save(filename,"SE_Etype",SE.Etype.data(),{numE2},"a");
+
+        cnpy::npz_save(filename,"VEToV",VEToV.data(),{numE4,4},"a");
+        cnpy::npz_save(filename,"VE_phys_tag",VE.phys_tag.data(),{numE4},"a");
+        cnpy::npz_save(filename,"VE_geom_tag",VE.geom_tag.data(),{numE4},"a");
+        cnpy::npz_save(filename,"VE_part_tag",VE.part_tag.data(),{numE4},"a");
+        cnpy::npz_save(filename,"VE_Etype",VE.Etype.data(),{numE4},"a");
         
     } else {
         std::cout << "ERROR: Could not open file: " << mesh_file << std::endl; 

@@ -43,35 +43,56 @@ std::vector<size_t> extractVectorBetween(
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-// Build convention map of Boundary conditions for ParadigmS:
+// Build convention map of Boundary elements for ParadigmS:
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-std::map<std::string,int> get_BC_type()
+std::map<std::string,int> get_BE_type()
 {
-    std::map<std::string,int> BC_type;
+    std::map<std::string,int> BE_type;
     // Initialize map of BCs
-    BC_type["BCfile"]=0;
-    BC_type["free"]=1;
-    BC_type["wall"]=2;
-    BC_type["outflow"]=3;
-    BC_type["imposedPressure"]=4;
-    BC_type["imposedVelocities"]=5;
-    BC_type["axisymmetric_y"]=6;
-    BC_type["axisymmetric_x"]=7;
-    BC_type["BC_rec"]=10;
-    BC_type["free_rec"]=11;
-    BC_type["wall_rec"]=12;
-    BC_type["outflow_rec"]=13;
-    BC_type["imposedPressure_rec"]=14;
-    BC_type["imposedVelocities_rec"]=15;
-    BC_type["axisymmetric_y_rec"]=16;
-    BC_type["axisymmetric_x_rec"]=17;
-    BC_type["piston_pressure"]=18;
-    BC_type["piston_velocity"]=19;
-    BC_type["recordingObject"]=20;
-    BC_type["recObj"]=20;
-    BC_type["piston_stress"]=21;
+    BE_type["BCfile"]=0;
+    BE_type["free"]=1;
+    BE_type["wall"]=2;
+    BE_type["outflow"]=3;
+    BE_type["imposedPressure"]=4;
+    BE_type["imposedVelocities"]=5;
+    BE_type["axisymmetric_y"]=6;
+    BE_type["axisymmetric_x"]=7;
+    BE_type["BC_rec"]=10;
+    BE_type["free_rec"]=11;
+    BE_type["wall_rec"]=12;
+    BE_type["outflow_rec"]=13;
+    BE_type["imposedPressure_rec"]=14;
+    BE_type["imposedVelocities_rec"]=15;
+    BE_type["axisymmetric_y_rec"]=16;
+    BE_type["axisymmetric_x_rec"]=17;
+    BE_type["piston_pressure"]=18;
+    BE_type["piston_velocity"]=19;
+    BE_type["recordingObject"]=20;
+    BE_type["recObj"]=20;
+    BE_type["piston_stress"]=21;
 
-    return BC_type;
+    return BE_type;
+}
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// Build convention map of Domain Elements for ParadigmS:
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+std::map<std::string,int> get_DE_type()
+{
+    std::map<std::string,int> DE_type;
+    // Initialize map of DEs
+    DE_type["fluid" ]=0;
+    DE_type["fluid1"]=1;
+    DE_type["fluid2"]=2;
+    DE_type["fluid3"]=3;
+    DE_type["fluid4"]=4;
+    DE_type["solid" ]=5;
+    DE_type["solid1"]=6;
+    DE_type["solid2"]=7;
+    DE_type["solid3"]=8;
+    DE_type["solid4"]=9;
+
+    return DE_type;
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
