@@ -115,12 +115,12 @@ public:
         return *this;
     }
 
-    T& operator()(uint i) { return m_data[i]; }
-    const T& operator()(uint i) const { return m_data[i]; }
-    T& operator()(uint i, uint j) { return m_data[i*m_dims[1]+j]; }
-    const T& operator()(uint i, uint j) const {return m_data[i*m_dims[1]+j]; }
-    T& operator()(uint i, uint j, uint k) { return m_data[ i*m_dims[1]*m_dims[2]+j*m_dims[2]+k]; }
-    const T& operator()(uint i, uint j, uint k) const {return m_data[i*m_dims[1]*m_dims[2]+j*m_dims[2]+k]; }
+    T& operator()(size_t i) { return m_data[i]; }
+    const T& operator()(size_t i) const { return m_data[i]; }
+    T& operator()(size_t i, size_t j) { return m_data[i*m_dims[1]+j]; }
+    const T& operator()(size_t i, size_t j) const {return m_data[i*m_dims[1]+j]; }
+    T& operator()(size_t i, size_t j, size_t k) { return m_data[ i*m_dims[1]*m_dims[2]+j*m_dims[2]+k]; }
+    const T& operator()(size_t i, size_t j, size_t k) const {return m_data[i*m_dims[1]*m_dims[2]+j*m_dims[2]+k]; }
 
     // Members functions that modify the data in the object
     void allocate(std::vector<size_t>const& dims2);

@@ -75,10 +75,6 @@ int GMSHparserV2(std::string mesh_file)
 
     // Build Maps variables
     std::map<size_t, std::string> phys2names;
-    std::map<size_t, int> point2phys, point2part, point2geom;
-    std::map<size_t, int> curve2phys, curve2part, curve2geom;
-    std::map<size_t, int> surf2phys, surf2part, surf2geom;
-    std::map<size_t, int> volm2phys, volm2part, volm2geom;
 
     // Last by not least, open meshfile:    
     std::ifstream file(mesh_file);
@@ -121,7 +117,7 @@ int GMSHparserV2(std::string mesh_file)
         // Sanity check
         if (version != 2.2)
         {
-            std::cout << " Error - Expected mesh format v4.1" << std::endl; 
+            std::cout << " Error - Expected mesh format v2.2" << std::endl; 
             std::exit(-1);
         }
         if (format != 0)

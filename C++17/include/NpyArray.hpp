@@ -253,7 +253,9 @@ namespace cnpy {
         d_stream.opaque = Z_NULL;
         d_stream.avail_in = 0;
         d_stream.next_in = Z_NULL;
+
         err = inflateInit2(&d_stream, -MAX_WBITS);
+        if(err!=Z_OK) std::cout << "Error : inflateInit2" << std::endl;
 
         d_stream.avail_in = compr_bytes;
         d_stream.next_in = &buffer_compr[0];
@@ -261,9 +263,10 @@ namespace cnpy {
         d_stream.next_out = &buffer_uncompr[0];
 
         err = inflate(&d_stream, Z_FINISH);
-        err = inflateEnd(&d_stream);
+        if(err!=Z_OK) std::cout << "Error : inflate" << std::endl;
 
-        if (err!=0) std::cout << "Zlib: Ups something went rogue!" << std::endl;
+        err = inflateEnd(&d_stream);
+        if(err!=Z_OK) std::cout << "Error : inflateEnd" << std::endl;
 
         std::vector<size_t> shape;
         size_t word_size;

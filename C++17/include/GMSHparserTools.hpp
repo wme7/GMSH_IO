@@ -43,7 +43,7 @@ std::vector<size_t> extractVectorBetween(
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-// Build convention map of Boundary elements for ParadigmS:
+// Build convention map of Boundary Elements (BE) for ParadigmS:
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 std::map<std::string,int> get_BE_type()
 {
@@ -75,7 +75,7 @@ std::map<std::string,int> get_BE_type()
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-// Build convention map of Domain Elements for ParadigmS:
+// Build convention map of Domain Elements (DE) for ParadigmS:
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 std::map<std::string,int> get_DE_type()
 {
