@@ -69,6 +69,7 @@ int GMSHparserV4(std::string mesh_file)
 
     // Is the mesh a single partition?
     bool single_domain = true; // Initial guess
+    size_t numPartitions = 0;  // Initial guess
 
     // Index correction factor
     size_t one = 0; // if we set one=0, one recovers the original indexes of GMSH.
@@ -96,13 +97,17 @@ int GMSHparserV4(std::string mesh_file)
         buffer << file.rdbuf();
         file.close();
 
+        // Erase return-carrige character: (\r)
+        std::string strBuffer = buffer.str();
+        strBuffer.erase(std::remove(strBuffer.begin(), strBuffer.end(),'\r'), strBuffer.end());
+
         // Initialized sub-buffers
-        std::string MeshFormat    = extractBetween(buffer.str(),"$MeshFormat\n","\n$EndMeshFormat");
-        std::string PhysicalNames = extractBetween(buffer.str(),"$PhysicalNames\n","\n$EndPhysicalNames");
-        std::string Entities      = extractBetween(buffer.str(),"$Entities\n","\n$EndEntities");
-        std::string PartEntities  = extractBetween(buffer.str(),"$PartitionedEntities\n","\n$EndPartitionedEntities");
-        std::string Nodes         = extractBetween(buffer.str(),"$Nodes\n","\n$EndNodes");
-        std::string Elements      = extractBetween(buffer.str(),"$Elements\n","\n$EndElements");
+        std::string MeshFormat    = extractBetween(strBuffer,"$MeshFormat\n","\n$EndMeshFormat");
+        std::string PhysicalNames = extractBetween(strBuffer,"$PhysicalNames\n","\n$EndPhysicalNames");
+        std::string Entities      = extractBetween(strBuffer,"$Entities\n","\n$EndEntities");
+        std::string PartEntities  = extractBetween(strBuffer,"$PartitionedEntities\n","\n$EndPartitionedEntities");
+        std::string Nodes         = extractBetween(strBuffer,"$Nodes\n","\n$EndNodes");
+        std::string Elements      = extractBetween(strBuffer,"$Elements\n","\n$EndElements");
 
         // Sanity check
         if (  MeshFormat.empty() ) {std::cout << " Error - Wrong File Format!" << std::endl; std::exit(-1);}
@@ -184,6 +189,9 @@ int GMSHparserV4(std::string mesh_file)
             std::stringstream buffer_Ent;
             buffer_Ent << Entities;
 
+            //size_t numPartitions = 1;
+            numPartitions = 1;
+
             size_t numPoints  = 0;
             size_t numCurves  = 0;
             size_t numSurfaces= 0;
@@ -242,7 +250,7 @@ int GMSHparserV4(std::string mesh_file)
             std::stringstream buffer_PEnt;
             buffer_PEnt << PartEntities;
             
-            size_t numPartitions = 0;
+            //size_t numPartitions = 0;
             buffer_PEnt >> numPartitions;
 
             std::getline(buffer_PEnt, line);

@@ -89,11 +89,15 @@ int GMSHparserV2(std::string mesh_file)
         buffer << file.rdbuf();
         file.close();
 
+        // Erase return-carrige character: (\r)
+        std::string strBuffer = buffer.str();
+        strBuffer.erase(std::remove(strBuffer.begin(), strBuffer.end(),'\r'), strBuffer.end());
+
         // Initialized sub-buffers
-        std::string MeshFormat    = extractBetween(buffer.str(),"$MeshFormat\n","\n$EndMeshFormat");
-        std::string PhysicalNames = extractBetween(buffer.str(),"$PhysicalNames\n","\n$EndPhysicalNames");
-        std::string Nodes         = extractBetween(buffer.str(),"$Nodes\n","\n$EndNodes");
-        std::string Elements      = extractBetween(buffer.str(),"$Elements\n","\n$EndElements");
+        std::string MeshFormat    = extractBetween(strBuffer,"$MeshFormat\n","\n$EndMeshFormat");
+        std::string PhysicalNames = extractBetween(strBuffer,"$PhysicalNames\n","\n$EndPhysicalNames");
+        std::string Nodes         = extractBetween(strBuffer,"$Nodes\n","\n$EndNodes");
+        std::string Elements      = extractBetween(strBuffer,"$Elements\n","\n$EndElements");
 
         // Sanity check
         if (  MeshFormat.empty() ) {std::cout << " Error - Wrong File Format!" << std::endl; std::exit(-1);}

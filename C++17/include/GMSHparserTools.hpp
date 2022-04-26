@@ -19,12 +19,19 @@ std::string extractBetween(
     const std::string &start_delimiter,
     const std::string &stop_delimiter)
 {
-    unsigned first_delim_pos = buffer.find(start_delimiter);
-    unsigned end_pos_of_first_delim = first_delim_pos + start_delimiter.length();
-    unsigned last_delim_pos = buffer.find(stop_delimiter);
+    if (buffer.find(start_delimiter) != std::string::npos)
+    {
+        size_t first_delim_pos = buffer.find(start_delimiter);
+        size_t end_pos_of_first_delim = first_delim_pos + start_delimiter.length();
+        size_t last_delim_pos = buffer.find(stop_delimiter);
 
-    return buffer.substr(end_pos_of_first_delim,
+        return buffer.substr(end_pos_of_first_delim,
         last_delim_pos - end_pos_of_first_delim);
+    }
+    else
+    {
+        return ""; // an empty string
+    }
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

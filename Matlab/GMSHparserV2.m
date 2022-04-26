@@ -54,11 +54,15 @@ function [V,VE,SE,LE,PE,mapPhysNames,info] = GMSHparserV2(filename)
 %% Read all sections
 
 file = fileread(filename);
+
+% Erase return-carrige character: (\r)
+strFile = erase(file,char(13));
+
 % Extract strings between:
-MeshFormat    = extractBetween(file,['$MeshFormat',newline],[newline,'$EndMeshFormat']);
-PhysicalNames = extractBetween(file,['$PhysicalNames',newline],[newline,'$EndPhysicalNames']);
-Nodes         = extractBetween(file,['$Nodes',newline],[newline,'$EndNodes']);
-Elements      = extractBetween(file,['$Elements',newline],[newline,'$EndElements']);
+MeshFormat    = extractBetween(strFile,['$MeshFormat',newline],[newline,'$EndMeshFormat']);
+PhysicalNames = extractBetween(strFile,['$PhysicalNames',newline],[newline,'$EndPhysicalNames']);
+Nodes         = extractBetween(strFile,['$Nodes',newline],[newline,'$EndNodes']);
+Elements      = extractBetween(strFile,['$Elements',newline],[newline,'$EndElements']);
 
 % Sanity check
 if isempty(MeshFormat),    error('Error - Wrong File Format!'); end

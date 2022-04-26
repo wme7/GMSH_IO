@@ -12,7 +12,7 @@ figure(1); subplot(221); viewNodes(V,info);
 figure(2); subplot(221); viewLineElements(V,LE.EToV,info);
 figure(3); subplot(221); viewSurfaceElements(V,SE.EToV,info);
 
-[V,~,SE,LE,~,~,info] = GMSHparserV4('../meshes/rectangle_v4.msh');
+[V,~,SE,LE,~,~,info] = GMSHparserV4('../meshes/double_piston_v4.msh');
 figure(1); subplot(222); viewNodes(V,info);
 figure(2); subplot(222); viewLineElements(V,LE.EToV,info);
 figure(3); subplot(222); viewSurfaceElements(V,SE.EToV,info);

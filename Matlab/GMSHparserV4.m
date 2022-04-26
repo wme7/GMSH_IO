@@ -54,13 +54,17 @@ function [V,VE,SE,LE,PE,mapPhysNames,info] = GMSHparserV4(filename)
 %% Read all sections
 
 file = fileread(filename);
+
+% Erase return-carrige character: (\r)
+strFile = erase(file,char(13));
+
 % Extract strings between:
-MeshFormat    = extractBetween(file,['$MeshFormat',newline],[newline,'$EndMeshFormat']);
-PhysicalNames = extractBetween(file,['$PhysicalNames',newline],[newline,'$EndPhysicalNames']);
-Entities      = extractBetween(file,['$Entities',newline],[newline,'$EndEntities']);
-PartEntities  = extractBetween(file,['$PartitionedEntities',newline],[newline,'$EndPartitionedEntities']);
-Nodes         = extractBetween(file,['$Nodes',newline],[newline,'$EndNodes']);
-Elements      = extractBetween(file,['$Elements',newline],[newline,'$EndElements']);
+MeshFormat    = extractBetween(strFile,['$MeshFormat',newline],[newline,'$EndMeshFormat']);
+PhysicalNames = extractBetween(strFile,['$PhysicalNames',newline],[newline,'$EndPhysicalNames']);
+Entities      = extractBetween(strFile,['$Entities',newline],[newline,'$EndEntities']);
+PartEntities  = extractBetween(strFile,['$PartitionedEntities',newline],[newline,'$EndPartitionedEntities']);
+Nodes         = extractBetween(strFile,['$Nodes',newline],[newline,'$EndNodes']);
+Elements      = extractBetween(strFile,['$Elements',newline],[newline,'$EndElements']);
 
 % Sanity check
 if isempty(MeshFormat),    error('Error - Wrong File Format!'); end
@@ -119,6 +123,7 @@ if single_domain
     %***********************%
     % 3. Read Entities
     %***********************%
+    info.numPartitions = 1;
     l=1; % line counter
     line_data = sscanf(cells_Ent{l},'%d %d %d %d');
     nP = line_data(1);
