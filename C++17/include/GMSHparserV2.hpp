@@ -193,10 +193,10 @@ int GMSHparserV2(std::string mesh_file)
         std::stringstream buffer_E;
         buffer_E << Elements;
 
-        size_t numElements  = 0;
-        buffer_E >> numElements;
+        size_t numTotalElem  = 0;
+        buffer_E >> numTotalElem;
 
-        if(DEBUG) std::cout << " numElements: " << numElements << std::endl;
+        if(DEBUG) std::cout << " numTotalElem: " << numTotalElem << std::endl;
         std::getline(buffer_E, line); // if ok, go to next line ..
 
         // Allocate space for Elements and their data
@@ -212,7 +212,7 @@ int GMSHparserV2(std::string mesh_file)
         size_t numE15= 0; // Point Element counter
 
         // Read elements serially
-        for (size_t i=0; i<numElements; i++) 
+        for (size_t i=0; i<numTotalElem; i++) 
         {
             // Read Block parameters
             std::getline(buffer_E, line);
@@ -323,7 +323,7 @@ int GMSHparserV2(std::string mesh_file)
         std::cout << "Total surface-elements found = " << numE2 << std::endl;   
         std::cout << "Total volume-elements found = " << numE4 << std::endl;
         // Sanity check
-        if (numElements != (numE15+numE1+numE2+numE4)) {
+        if (numTotalElem != (numE15+numE1+numE2+numE4)) {
             std::cout << "Total number of elements missmatch!"<< std::endl;
             std::exit(-1);
         }

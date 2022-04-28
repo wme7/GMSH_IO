@@ -352,13 +352,13 @@ int GMSHparserV4(std::string mesh_file)
         buffer_E << Elements;
 
         size_t numEntBlocks = 0;
-        size_t numElements  = 0;
+        size_t numTotalElem = 0;
         size_t minElemIndex = 0; // not needed
         size_t maxElemIndex = 0; // not needed
-        buffer_E >> numEntBlocks >> numElements >> minElemIndex >> maxElemIndex;
+        buffer_E >> numEntBlocks >> numTotalElem >> minElemIndex >> maxElemIndex;
 
         if(DEBUG) std::cout << " numEntBlocks: " << numEntBlocks     << std::endl;
-        if(DEBUG) std::cout << " numElements: "  << numElements      << std::endl;
+        if(DEBUG) std::cout << " numTotalElem: " << numTotalElem     << std::endl;
         if(DEBUG) std::cout << " minElemIndex: " << minElemIndex-one << std::endl;
         if(DEBUG) std::cout << " maxElemIndex: " << maxElemIndex-one << std::endl;
         std::getline(buffer_E, line); // if ok, go to next line ..
@@ -461,7 +461,7 @@ int GMSHparserV4(std::string mesh_file)
         std::cout << "Total surface-elements found = " << numE2 << std::endl;   
         std::cout << "Total volume-elements found = " << numE4 << std::endl;
         // Sanity check
-        if (numElements != (numE15+numE1+numE2+numE4)) {
+        if (numTotalElem != (numE15+numE1+numE2+numE4)) {
             std::cout << "Total number of elements missmatch!"<< std::endl;
             std::exit(-1);
         }
