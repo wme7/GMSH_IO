@@ -337,7 +337,7 @@ int GMSHparserV4(std::string mesh_file)
         if(DEBUG) std::cout << " maxNodeIndex: "   << maxNodeIndex-one << std::endl;
 
         //V = get_nodes(buffer_N,runNodesBlocks,numNodes);
-        MArray<double,2> V = get_nodes(Nodes,numNodesBlocks,numNodes,phys_DIM); //V.print();
+        MArray<double,2> V = get_nodes(Nodes,numNodesBlocks,numNodes,phys_DIM,one); //V.print();
 
         // Report the number for nodes found
         std::cout << "Total vertices found = " << numNodes << std::endl;

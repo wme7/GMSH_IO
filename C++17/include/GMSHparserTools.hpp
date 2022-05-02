@@ -103,6 +103,53 @@ std::map<std::string,int> get_DE_type()
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// Parse string between brackets
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+size_t extractBetweenBrackets(const std::string &name)
+{
+    if(name.find("[")!=std::string::npos)
+    {
+        size_t first_delim_pos = name.find("[");
+        size_t last_delim_pos = name.find("]");
+        std::string strNumber = name.substr(first_delim_pos+1,last_delim_pos);
+        return std::stoul(strNumber,nullptr,0); // ID
+    }
+    else
+    {
+        return 0; // ID = 0;
+    }
+}
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// Set a unique id type for the piston BCs
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+size_t parse_BC(const std::string &strName)
+{
+    bool DEBUG = false; 
+    size_t BEtype{0};
+    auto id = extractBetweenBrackets(strName);
+    if(strName.find("BC_piston_pressure")!=std::string::npos){BEtype=1000+id;}
+    if(strName.find("BC_piston_velocity")!=std::string::npos){BEtype=2000+id;}
+    if(strName.find( "BC_piston_stress" )!=std::string::npos){BEtype=3000+id;}
+    if(DEBUG) std::cout << "active boundary condition, BEtype=" << BEtype << std::endl;
+    return BEtype;
+}
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// Set a unique id for every recording object
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+size_t parse_rec(const std::string &strName)
+{
+    bool DEBUG = false; 
+    size_t BEtype{0};
+    auto id = extractBetweenBrackets(strName);
+    if(id<999) {BEtype=600+id;}
+    else {std::cout << "problem in parse_rec with the id of the recording object" << std::endl;}
+    if(DEBUG) std::cout << "active boundary condition, BEtype=" << BEtype << std::endl;
+    return BEtype;
+}
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // Element structure to be acquired:
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 struct element
@@ -260,13 +307,14 @@ std::tuple<size_t, size_t, int, int> get_partitionedEntity(const std::string &li
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // Get nodes from block system (GMSG format 4.1)
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodesBlocks, const size_t &numNodes, const size_t Dim) 
+MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodesBlocks, const size_t &numNodes, const size_t Dim, const size_t one) 
 {
     // Allocate output
     MArray<double,2> V({numNodes,Dim},0); // [x(:),y(:),z(:)]
 
     // Node counter
     size_t n=0;
+    size_t nID;
 
     std::stringstream buffer(Nodes);
     std::string line; 
@@ -298,8 +346,9 @@ MArray<double,2> get_nodes(const std::string &Nodes, const size_t &numNodesBlock
         {
             std::getline(buffer, line);
             std::stringstream stream(line);
-            if (Dim==2) {stream >> V(n,0) >> V(n,1);}
-            if (Dim==3) {stream >> V(n,0) >> V(n,1) >> V(n,2);}
+            nID = nodeTag[i]-one;
+            if (Dim==2) {stream >> V(nID,0) >> V(nID,1);}
+            if (Dim==3) {stream >> V(nID,0) >> V(nID,1) >> V(nID,2);}
             n = n+1; // Update node counter
         }
         // Delete temporary new-arrays
